@@ -1,36 +1,36 @@
 # Agent Workspace
 
-Minimal Electron-app som startar flera Claude Code-processer och strömmar svaren till ett chattgränssnitt.
+Minimal Electron app that runs several Claude Code processes and streams their replies to a chat UI.
 
-## Kom igång
+## Getting started
 
 ```bash
 npm install
 npm start
 ```
 
-Kräver att `claude` finns i PATH och att du är inloggad (kör `claude` en gång i terminalen).
+Requires `claude` on your PATH and a logged-in session (run `claude` once in a terminal).
 
-## Agenter och worktrees
+## Agents and worktrees
 
-Ange ett uppgiftsnamn, klicka "+ Ny agent" och välj ett git-repo. Appen kör
-`git worktree add -b agent/<uppgift> <repo>-worktrees/<uppgift>` och startar claude där.
-Claude körs med `--permission-mode acceptEdits`: filändringar i worktreen godkänns direkt,
-andra verktyg (t.ex. Bash) nekas och visas som "⛔ nekad" i chatten.
+Enter a task name, click "+ Ny agent" and pick a git repo. The app runs
+`git worktree add -b agent/<task> <repo>-worktrees/<task>` and starts claude there.
+Claude runs with `--permission-mode acceptEdits`: file edits inside the worktree are approved
+automatically, other tools (e.g. Bash) are denied and shown as "⛔ nekad" in the chat.
 
-"×" stoppar agenten och kör `git worktree remove` (utan `--force`). Har worktreen ändringar
-som inte är committade vägrar git, och worktreen ligger kvar. Grenen `agent/<uppgift>` behålls alltid.
-Worktrees tas inte bort när appen avslutas.
+"×" stops the agent and runs `git worktree remove` (without `--force`). If the worktree has
+uncommitted changes, git refuses and the worktree stays. The `agent/<task>` branch is always kept.
+Worktrees are not removed when the app quits.
 
-## Struktur
+## Structure
 
-- `agent.js` – `createWorktree`/`removeWorktree` och en `Agent` = en `claude -p --input-format stream-json --output-format stream-json --verbose`-process. Läser JSON-rader från stdout, skriver JSON-rader till stdin. Ingen Electron-beroende, går att testa själv (`npm test`).
-- `main.js` – Electron-huvudprocess. Håller listan över agenter, startar dem, skickar händelser till gränssnittet via IPC, visar skrivbordsnotis när en agent blir klar och stoppar alla processer vid avslut.
-- `preload.js` – smal brygga (`window.agents`) mellan gränssnittet och huvudprocessen.
-- `renderer/` – sidolista med status + chattvy.
+- `agent.js` – `createWorktree`/`removeWorktree` and an `Agent` = one `claude -p --input-format stream-json --output-format stream-json --verbose` process. Reads JSON lines from stdout, writes JSON lines to stdin. No Electron dependency, testable on its own (`npm test`).
+- `main.js` – Electron main process. Keeps the list of agents, starts them, forwards events to the UI over IPC, shows a desktop notification when an agent finishes and stops all processes on quit.
+- `preload.js` – thin bridge (`window.agents`) between the UI and the main process.
+- `renderer/` – sidebar with status + chat view.
 
-## Nästa steg
+## Next steps
 
-1. Behörighetsfrågor som knappar (kräver Agent SDK eller `--permission-prompt-tool`).
-2. Diffvy per agent.
-3. Spara sessioner (`sessionId` finns redan på `Agent`) och återuppta med `--resume`.
+1. Permission prompts as buttons (needs the Agent SDK or `--permission-prompt-tool`).
+2. Diff view per agent.
+3. Persist sessions (`sessionId` already exists on `Agent`) and resume with `--resume`.
