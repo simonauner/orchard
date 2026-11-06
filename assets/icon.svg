@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3fb768"/>
+      <stop offset="1" stop-color="#1c6b3b"/>
+    </linearGradient>
+  </defs>
+  <!-- macOS icon grid: 824px squircle-ish tile inside a 1024 canvas -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <!-- Trunk and branches drawn like a git graph: a tree of worktrees -->
+  <g fill="none" stroke="#f4f1e6" stroke-width="46" stroke-linecap="round">
+    <path d="M512 810 V330"/>
+    <path d="M512 650 C512 560 350 580 350 480"/>
+    <path d="M512 570 C512 480 674 500 674 420"/>
+  </g>
+  <circle cx="512" cy="300" r="66" fill="#ff5f4a" stroke="#f4f1e6" stroke-width="22"/>
+  <circle cx="350" cy="460" r="62" fill="#ffc53d" stroke="#f4f1e6" stroke-width="22"/>
+  <circle cx="674" cy="400" r="62" fill="#ff8a3d" stroke="#f4f1e6" stroke-width="22"/>
+</svg>

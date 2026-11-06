@@ -42,6 +42,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1100,
     height: 760,
+    icon: path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -356,6 +357,8 @@ app.whenReady().then(() => {
   hidden = [].concat(readJson('hidden.json', [])).filter((w) => workspaces.includes(w));
   const saved = readJson('settings.json', {});
   settings = { claudePath: typeof saved.claudePath === 'string' ? saved.claudePath : '' };
+  // `electron .` has no bundle icon; set the Dock icon at runtime.
+  if (process.platform === 'darwin') app.dock.setIcon(path.join(__dirname, 'assets', 'icon.png'));
   restoreAgents();
   createWindow();
 });
