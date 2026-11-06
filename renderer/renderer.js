@@ -100,6 +100,8 @@ function foldTurn(agent) {
   if (state.active === agent.id) renderLog(agent);
 }
 
+const ARCHIVE_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>';
+
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -130,8 +132,9 @@ function renderWorkspace(ws, target) {
     item.title = `${a.status} · ${branchLabel(a)}`;
     item.appendChild(el('span', `dot ${a.status}`));
     item.appendChild(el('span', 'name', a.name));
-    const rm = el('button', 'icon rm', '×');
-    rm.title = rm.ariaLabel = 'Remove agent and worktree';
+    const rm = el('button', 'icon rm');
+    rm.innerHTML = ARCHIVE_ICON;
+    rm.title = rm.ariaLabel = 'Archive workspace';
     rm.onclick = (e) => { e.stopPropagation(); remove(a); };
     item.appendChild(rm);
     item.onclick = () => select(a.id);
@@ -485,9 +488,9 @@ $('createForm').onsubmit = async (e) => {
 };
 
 async function remove(agent) {
-  if (!confirm(`Remove agent "${agent.name}" and its worktree?${agent.branch ? ` The branch ${agent.branch} is kept.` : ''}`)) return;
+  if (!confirm(`Archive "${agent.name}"? Its archive script runs and the worktree is removed.${agent.branch ? ` The branch ${agent.branch} is kept.` : ''}`)) return;
   const res = await window.agents.remove(agent.id);
-  if (!res.ok) { addLine(agent, 'meta', `Could not remove the worktree: ${res.error}`); return; }
+  if (!res.ok) { addLine(agent, 'meta', `Could not archive: ${res.error}`); return; }
   state.agents.delete(agent.id);
   if (state.active === agent.id) showCreate(agent.workspace);
   else renderList();
