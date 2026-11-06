@@ -13,12 +13,43 @@ function addLine(agent, cls, text, tab = 'chat') {
   if (state.active === agent.id && state.tab === tab) appendLineEl({ cls, text });
 }
 
-function appendLineEl({ cls, text }) {
-  const d = document.createElement('div');
-  d.className = 'msg ' + cls;
-  d.textContent = text;
-  logEl.appendChild(d);
+function lineEl(line) {
+  if (!line.lines) return el('div', 'msg ' + line.cls, line.text);
+  const d = el('details', 'msg fold');
+  d.appendChild(el('summary', null, line.text));
+  for (const l of line.lines) d.appendChild(lineEl(l));
+  return d;
+}
+
+function appendLineEl(line) {
+  logEl.appendChild(lineEl(line));
   logEl.scrollTop = logEl.scrollHeight;
+}
+
+// Renders the open tab; the tool-call folding re-renders through here too.
+function renderLog(agent) {
+  logEl.innerHTML = '';
+  const lines = tabLines(agent, state.tab);
+  lines.forEach(appendLineEl);
+  if (!lines.length && state.tab !== 'chat')
+    appendLineEl({ cls: 'meta', text: agent.configFile ? `Nothing yet. Scripts come from ${agent.configFile}.`
+      : 'No scripts. Add .orchard/settings.toml (or .conductor/settings.toml) to the repo.' });
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+// Once a turn ends, fold its tool calls and in-between messages; the final answer stays visible.
+function foldTurn(agent) {
+  const L = agent.lines;
+  const start = L.findLastIndex((l) => l.cls === 'you') + 1;
+  const last = L.findLastIndex((l) => l.cls === 'assistant');
+  const end = last >= start ? last : L.length;
+  const inner = L.slice(start, end);
+  const tools = inner.filter((l) => l.cls === 'tool').length;
+  if (!tools) return;
+  const msgs = inner.filter((l) => l.cls === 'assistant').length;
+  L.splice(start, inner.length, { cls: 'fold', text: plural(tools, 'tool call') + (msgs ? ', ' + plural(msgs, 'message') : ''), lines: inner });
+  if (state.active === agent.id) renderLog(agent);
 }
 
 function el(tag, cls, text) {
@@ -127,11 +158,7 @@ function showTab(tab) {
   $('form').hidden = tab !== 'chat';
   $('runSel').hidden = $('runBtn').hidden = !a.runs.length;
   $('runBtn').textContent = a.running.run ? '■ Stop' : '▶ Run';
-  logEl.innerHTML = '';
-  tabLines(a, tab).forEach(appendLineEl);
-  if (!tabLines(a, tab).length && tab !== 'chat')
-    appendLineEl({ cls: 'meta', text: a.configFile ? `Nothing yet. Scripts come from ${a.configFile}.`
-      : 'No scripts. Add .orchard/settings.toml (or .conductor/settings.toml) to the repo.' });
+  renderLog(a);
   if (tab === 'chat') input.focus();
 }
 
@@ -154,6 +181,7 @@ function handleEvent(agent, evt) {
         addLine(agent, 'tool', `🔧 ${block.name} ${JSON.stringify(block.input).slice(0, 200)}`);
     }
   } else if (evt.type === 'result') {
+    foldTurn(agent);
     const cost = evt.total_cost_usd != null ? ` · $${evt.total_cost_usd.toFixed(4)}` : '';
     addLine(agent, 'meta', `done${cost}`);
     for (const d of evt.permission_denials ?? [])

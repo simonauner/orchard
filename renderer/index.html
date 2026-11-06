@@ -66,6 +66,9 @@
     .tabBtn.running::after { content: ' ●'; color: #2e9e4f; }
     .out { margin: 0; white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 12px; }
     #form[hidden], #runSel[hidden], #runBtn[hidden] { display: none; }
+    .fold > summary { color: var(--muted); font-size: 12px; cursor: pointer; }
+    .fold[open] > summary { margin-bottom: 12px; }
+    .fold > .msg { padding-left: 14px; border-left: 2px solid var(--bd); margin-bottom: 0; padding-bottom: 12px; }
     #form { margin: 0 16px 16px; }
     #form textarea { min-height: 60px; max-height: 40vh; resize: none; }
     #agentModel { color: var(--muted); font-size: 13px; padding: 4px; }
