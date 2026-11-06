@@ -611,3 +611,23 @@ Promise.all([window.agents.workspaces(), window.agents.list()]).then(([ws, list]
   for (const info of list) state.agents.set(info.id, { ...info, lines: null, logs: { setup: [], run: [] }, running: {} }); // history loads on select
   showCreate();
 });
+
+// Drag the edge of the sidebar or the right panel to resize it; min/max come from the CSS.
+for (const handle of document.querySelectorAll('.resizer')) {
+  const pane = handle.parentElement, sign = pane.id === 'panel' ? -1 : 1, key = `width:${pane.id}`;
+  const clamp = (w) => { const cs = getComputedStyle(pane); return Math.min(parseFloat(cs.maxWidth), Math.max(parseFloat(cs.minWidth), w)); };
+  try { const saved = localStorage.getItem(key); if (saved) pane.style.width = `${saved}px`; } catch {}
+  handle.addEventListener('pointerdown', (e) => {
+    const startX = e.clientX, startW = pane.getBoundingClientRect().width;
+    handle.setPointerCapture(e.pointerId);
+    handle.classList.add('dragging'); document.body.classList.add('resizing');
+    const move = (ev) => { pane.style.width = `${clamp(startW + sign * (ev.clientX - startX))}px`; };
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.classList.remove('dragging'); document.body.classList.remove('resizing');
+      if (pane.style.width) try { localStorage.setItem(key, parseFloat(pane.style.width)); } catch {}
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up, { once: true });
+  });
+}
