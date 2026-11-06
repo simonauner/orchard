@@ -6,9 +6,12 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node test/agent.test.js && node test/worktree.test.js && node test/settings.test.js"
+    "test": "node test/agent.test.js && node test/worktree.test.js && node test/settings.test.js && node test/scripts.test.js"
   },
   "devDependencies": {
     "electron": "^33.0.0"
+  },
+  "dependencies": {
+    "smol-toml": "^1.6.1"
   }
 }

@@ -1,13 +1,16 @@
-// agents: { id, name, status, branch, workspace, lines: [{cls, text}] }
-const state = { workspaces: [], agents: new Map(), active: null, view: 'create' };
+// agents: { id, name, status, branch, workspace, runs, lines: [{cls, text}] | null until loaded,
+//          logs: { setup|run: [...] } (this run of the app only), running: {setup, run} }
+const state = { workspaces: [], agents: new Map(), active: null, view: 'create', tab: 'chat' };
 
 const $ = (id) => document.getElementById(id);
 const listEl = $('list'), logEl = $('log'), input = $('text');
 const basename = (p) => p.split('/').filter(Boolean).pop();
 
-function addLine(agent, cls, text) {
-  agent.lines.push({ cls, text });
-  if (state.active === agent.id) appendLineEl({ cls, text });
+const tabLines = (a, tab) => (tab === 'chat' ? a.lines : a.logs[tab]);
+
+function addLine(agent, cls, text, tab = 'chat') {
+  tabLines(agent, tab).push({ cls, text });
+  if (state.active === agent.id && state.tab === tab) appendLineEl({ cls, text });
 }
 
 function lineEl(line) {
@@ -23,9 +26,14 @@ function appendLineEl(line) {
   logEl.scrollTop = logEl.scrollHeight;
 }
 
+// Renders the open tab; the tool-call folding re-renders through here too.
 function renderLog(agent) {
   logEl.innerHTML = '';
-  agent.lines.forEach(appendLineEl);
+  const lines = tabLines(agent, state.tab);
+  lines.forEach(appendLineEl);
+  if (!lines.length && state.tab !== 'chat')
+    appendLineEl({ cls: 'meta', text: agent.configFile ? `Nothing yet. Scripts come from ${agent.configFile}.`
+      : 'No scripts. Add .orchard/settings.toml (or .conductor/settings.toml) to the repo.' });
 }
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -128,10 +136,39 @@ async function select(id) {
   state.active = id;
   showView('chat');
   setTitle(a);
-  renderLog(a);
+  const sel = $('runSel');
+  sel.innerHTML = '';
+  for (const r of a.runs) {
+    const o = el('option', null, r.name);
+    o.value = r.name;
+    sel.appendChild(o);
+  }
+  sel.value = a.runChoice || a.runs.find((r) => r.default)?.name || a.runs[0]?.name || '';
   syncGo();
-  input.focus();
+  showTab(state.tab);
 }
+
+function showTab(tab) {
+  state.tab = tab;
+  const a = state.agents.get(state.active);
+  for (const b of document.querySelectorAll('.tabBtn')) {
+    b.classList.toggle('active', b.dataset.tab === tab);
+    b.classList.toggle('running', !!a.running[b.dataset.tab]);
+  }
+  $('form').hidden = tab !== 'chat';
+  $('runSel').hidden = $('runBtn').hidden = !a.runs.length;
+  $('runBtn').textContent = a.running.run ? '■ Stop' : '▶ Run';
+  renderLog(a);
+  if (tab === 'chat') input.focus();
+}
+
+for (const b of document.querySelectorAll('.tabBtn')) b.onclick = () => showTab(b.dataset.tab);
+$('runSel').onchange = () => { state.agents.get(state.active).runChoice = $('runSel').value; };
+$('runBtn').onclick = () => {
+  const a = state.agents.get(state.active);
+  if (a.running.run) window.agents.runStop(a.id);
+  else { window.agents.run(a.id, $('runSel').value); showTab('run'); }
+};
 
 // Turn one stream-json event into readable lines.
 function handleEvent(agent, evt) {
@@ -236,7 +273,8 @@ $('createForm').onsubmit = async (e) => {
     const info = await window.agents.create({ workspace: $('ws').value, prompt, model: $('model').value, effort: $('effort').value });
     if (info.error) { $('err').textContent = info.error; return; }
     $('prompt').value = '';
-    const agent = { ...info, lines: [] };
+    const agent = { ...info, lines: [], logs: { setup: [], run: [] }, running: {} };
+    state.tab = 'chat';
     state.agents.set(info.id, agent);
     addLine(agent, 'you', '› ' + prompt);
     select(info.id);
@@ -282,8 +320,21 @@ window.agents.onInfo((info) => {
   const a = state.agents.get(info.id);
   if (!a) return;
   Object.assign(a, info);
-  if (state.active === a.id) setTitle(a);
+  if (state.active === a.id) select(a.id); // the run scripts are known once the worktree exists
   renderList();
+});
+window.agents.onScript((id, kind, line) => {
+  const a = state.agents.get(id);
+  if (a) addLine(a, 'out', line, kind);
+});
+window.agents.onScriptState((id, kind, running) => {
+  const a = state.agents.get(id);
+  if (!a) return;
+  a.running[kind] = running;
+  if (state.active === id && state.view === 'chat') {
+    document.querySelector(`.tabBtn[data-tab="${kind}"]`).classList.toggle('running', running);
+    $('runBtn').textContent = a.running.run ? '■ Stop' : '▶ Run';
+  }
 });
 window.agents.onStatus((id, status) => {
   const a = state.agents.get(id);
@@ -292,6 +343,6 @@ window.agents.onStatus((id, status) => {
 
 Promise.all([window.agents.workspaces(), window.agents.list()]).then(([ws, list]) => {
   state.workspaces = ws;
-  for (const info of list) state.agents.set(info.id, { ...info, lines: null }); // history loads on select
+  for (const info of list) state.agents.set(info.id, { ...info, lines: null, logs: { setup: [], run: [] }, running: {} }); // history loads on select
   showCreate();
 });

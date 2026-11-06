@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron'
 const fs = require('node:fs');
 const path = require('node:path');
 const { Agent, checkExecutable, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify } = require('./agent');
+const { loadConfig, scriptEnv, runScript } = require('./scripts');
 
 // The native Claude Code installer puts `claude` in ~/.local/bin, which shells and GUI launches often lack.
 const localBin = path.join(require('node:os').homedir(), '.local', 'bin');
@@ -52,8 +53,30 @@ function toUi(...args) {
 }
 
 function publicInfo(a) {
-  return { id: a.id, status: a.status, name: a.task, branch: a.worktree.branch, workspace: a.worktree.root, model: a.model, effort: a.effort };
+  return {
+    id: a.id, status: a.status, name: a.task, branch: a.worktree.branch, workspace: a.worktree.root, model: a.model, effort: a.effort,
+    configFile: a.config?.file || null, runs: a.config?.run.map((r) => ({ name: r.name, default: r.default })) || [],
+  };
 }
+
+// kind: 'setup' | 'run'. Lines and state go to the agent's Setup/Run tabs.
+function startScript(agent, kind, command) {
+  const say = (line) => toUi('agent:script', agent.id, kind, line);
+  say(`$ ${command}`);
+  const job = runScript(command, { cwd: agent.worktree.dir, env: scriptEnv({ ...agent.worktree, port: agent.port }), onLine: say });
+  agent.jobs[kind] = job;
+  toUi('agent:scriptState', agent.id, kind, true);
+  job.done.then((code) => {
+    say(code === 0 ? '✓ finished' : `✗ exited with ${code}`);
+    if (agent.jobs[kind] === job) {
+      agent.jobs[kind] = null;
+      toUi('agent:scriptState', agent.id, kind, false);
+    }
+  });
+  return job;
+}
+
+const stopJobs = (agent) => Promise.all(Object.values(agent.jobs).filter(Boolean).map((j) => j.kill()));
 
 ipcMain.handle('workspaces:list', () => workspaces);
 
@@ -131,9 +154,23 @@ async function setup(agent, prompt) {
   agent.worktree = worktree;
   if (!agents.has(agent.id)) return removeWorktree(worktree).catch(() => {}); // removed while setting up
   agent.cwd = worktree.dir;
+  const configError = loadScripts(agent);
   saveAgents();
   toUi('agent:info', publicInfo(agent));
   send(agent, prompt);
+  // Like Conductor, setup runs next to the agent rather than before it.
+  if (configError) toUi('agent:script', agent.id, 'setup', configError);
+  else if (agent.config?.setup) startScript(agent, 'setup', agent.config.setup);
+}
+
+// Reads the repo's setup/run/archive scripts from the worktree; returns an error message, if any.
+function loadScripts(agent) {
+  try {
+    agent.config = loadConfig(agent.worktree.dir);
+  } catch (e) {
+    agent.config = null;
+    return e.message;
+  }
 }
 
 // Starts claude again (resuming its session) if it is not running, e.g. after a restart.
@@ -163,6 +200,9 @@ function saveAgents() {
 
 function track(agent) {
   agents.set(agent.id, agent);
+  // Ten ports per agent, like Conductor. shortcut: not checked for being free, probe if collisions show up.
+  agent.port = 41000 + (agent.id % 400) * 10;
+  agent.jobs = { setup: null, run: null };
   agent.on('event', (event) => {
     log(agent, event);
     if (event.type === 'system' && event.subtype === 'init') saveAgents(); // new or resumed session id
@@ -184,6 +224,7 @@ function restoreAgents() {
       const agent = new Agent({ id: s.id, cwd: s.worktree.dir, command: claudeCommand(), model: s.model, effort: s.effort });
       Object.assign(agent, { task: String(s.task), model: s.model, effort: s.effort, worktree: s.worktree, sessionId: s.sessionId || null });
       track(agent);
+      loadScripts(agent); // a broken config just means no scripts for this agent
     } catch {
       // model/effort no longer valid: skip rather than crash on startup
     }
@@ -193,7 +234,11 @@ function restoreAgents() {
 ipcMain.handle('agent:remove', async (_e, id) => {
   const agent = agents.get(id);
   if (!agent) return { ok: true };
-  await agent.stop();
+  await Promise.all([agent.stop(), stopJobs(agent)]);
+  if (agent.config?.archive) {
+    const code = await startScript(agent, 'setup', agent.config.archive).done;
+    if (code !== 0) return { ok: false, error: `The archive script exited with ${code}; see the Setup tab.` };
+  }
   try {
     if (agent.worktree.dir) await removeWorktree(agent.worktree);
   } catch (e) {
@@ -220,8 +265,19 @@ ipcMain.handle('agent:send', (_e, id, text) => {
 });
 ipcMain.handle('agent:stop', (_e, id) => agents.get(id)?.stop());
 
+// One run at a time per agent; starting another stops the current one first.
+ipcMain.handle('agent:run', async (_e, id, name) => {
+  const agent = agents.get(id);
+  const run = agent?.config?.run.find((r) => r.name === name);
+  if (!run) return false;
+  await agent.jobs.run?.kill();
+  startScript(agent, 'run', run.command);
+  return true;
+});
+ipcMain.handle('agent:runStop', (_e, id) => agents.get(id)?.jobs.run?.kill());
+
 // Never leave orphaned claude processes behind.
-app.on('before-quit', () => agents.forEach((a) => a.stop()));
+app.on('before-quit', () => agents.forEach((a) => { a.stop(); stopJobs(a); }));
 app.on('window-all-closed', () => app.quit());
 app.whenReady().then(() => {
   workspaces = [].concat(readJson('workspaces.json', [])).filter((w) => typeof w === 'string');
