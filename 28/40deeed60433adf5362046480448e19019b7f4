@@ -1,0 +1,21 @@
+.gitignore
+  s_b907a91cef591e::t_8f98e42291848c 1
+package-lock.json
+  s_b907a91cef591e::t_6d724641b70d6e 1-1402
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2840deeed60433adf5362046480448e19019b7f4",
+  "prompts": {},
+  "sessions": {
+    "s_b907a91cef591e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7c3b8461-57d6-498d-a53d-c7be464091d6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
