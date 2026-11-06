@@ -16,8 +16,11 @@ function addLine(agent, cls, text, tab = 'chat') {
   else { syncPanel(agent); if (state.tab === tab) appendLineEl({ cls, text }, outEl); }
 }
 
-// The panel only takes room when the repo has scripts or something was printed (e.g. a config error).
-const syncPanel = (a) => { $('panel').hidden = !a.configFile && !a.logs.setup.length && !a.logs.run.length; };
+// The panel shows once the worktree exists; the scripts half only when the repo has scripts or something was printed.
+const syncPanel = (a) => {
+  $('panel').hidden = !a.branch;
+  $('scripts').hidden = !a.configFile && !a.logs.setup.length && !a.logs.run.length;
+};
 
 // Agent output is untrusted: show raw HTML as text instead of rendering it.
 const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -260,6 +263,8 @@ async function select(id) {
   syncGo();
   renderLog(a);
   showTab(state.tab);
+  renderGit(a);
+  refreshGit(id);
   input.focus();
 }
 
@@ -296,6 +301,72 @@ $('runBtn').onclick = () => {
   if (a.running.run) window.agents.runStop(a.id);
   else { window.agents.run(a.id, $('runSel').value); showTab('run'); }
 };
+
+// ---- Git panel: the worktree's PRs and changes ----
+async function refreshGit(id) {
+  const info = await window.agents.git(id);
+  const a = state.agents.get(id);
+  if (!a || !info) return;
+  a.git = info;
+  if (state.active === id && state.view === 'chat') renderGit(a);
+}
+
+const STATUS_CLS = { 'Ready to merge': 'ok', Merged: 'ok', 'Checks failing': 'bad', Conflicts: 'bad', 'Changes requested': 'bad' };
+
+function renderGit(a) {
+  const g = a.git;
+  const prs = $('prs'), files = $('files');
+  prs.innerHTML = files.innerHTML = '';
+  $('filesSum').textContent = '';
+  if (!g) return;
+  if (g.ghError) prs.appendChild(el('div', 'meta', g.ghError));
+  for (const pr of g.prs) {
+    const row = el('div', 'pr');
+    const link = el('a', 'btn', `#${pr.number} ↗`);
+    link.href = pr.url;
+    link.target = '_blank';
+    link.title = pr.title;
+    row.appendChild(link);
+    if (pr.deploymentUrl) {
+      const dep = el('a', 'btn', '🌐 View deployment');
+      dep.href = pr.deploymentUrl;
+      dep.target = '_blank';
+      row.appendChild(dep);
+    }
+    row.appendChild(el('span', 'status ' + (STATUS_CLS[pr.status] || ''), pr.status));
+    if (!['Merged', 'Closed', 'Draft'].includes(pr.status)) {
+      const merge = el('button', 'btn', 'Merge');
+      merge.onclick = async () => {
+        if (!confirm(`Merge #${pr.number} "${pr.title}"?`)) return;
+        merge.disabled = true;
+        const res = await window.agents.merge(a.id, pr.number);
+        if (res.error) addLine(a, 'meta', `Could not merge #${pr.number}: ${res.error}`);
+        refreshGit(a.id);
+      };
+      row.appendChild(merge);
+    }
+    prs.appendChild(row);
+  }
+  if (g.diffError) { files.appendChild(el('div', 'meta', g.diffError)); return; }
+  const sum = (k) => g.files.reduce((n, f) => n + (f[k] || 0), 0);
+  $('filesSum').textContent = `${plural(g.files.length, 'file')} changed`;
+  const totals = el('span', 'meta', ` vs ${g.base} `);
+  totals.append(el('span', 'add', `+${sum('add')}`), ' ', el('span', 'del', `-${sum('del')}`));
+  $('filesSum').appendChild(totals);
+  for (const f of g.files) {
+    const row = el('div', 'file');
+    row.title = f.file;
+    row.appendChild(el('span', 'path', f.file));
+    if (f.untracked) row.appendChild(el('span', 'add', 'new'));
+    else if (f.add == null) row.appendChild(el('span', 'meta', 'binary'));
+    else row.append(el('span', 'add', `+${f.add}`), el('span', 'del', `-${f.del}`));
+    files.appendChild(row);
+  }
+}
+
+$('gitRefresh').onclick = () => state.active && refreshGit(state.active);
+// shortcut: polls the open agent every 30s for CI/review changes; use GitHub webhooks if that gets too chatty.
+setInterval(() => { if (state.active && state.view === 'chat' && !document.hidden) refreshGit(state.active); }, 30000);
 
 // Turn one stream-json event into readable lines.
 function handleEvent(agent, evt) {
@@ -472,7 +543,10 @@ window.agents.onScriptState((id, kind, running) => {
 });
 window.agents.onStatus((id, status) => {
   const a = state.agents.get(id);
-  if (a) { a.status = status; renderList(); }
+  if (!a) return;
+  a.status = status;
+  renderList();
+  if (status === 'done') refreshGit(id); // the agent may have committed or opened a PR
 });
 
 Promise.all([window.agents.workspaces(), window.agents.list()]).then(([ws, list]) => {

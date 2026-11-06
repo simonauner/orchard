@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Agent, checkExecutable, claudeDefaults, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify } = require('./agent');
 const { loadConfig, scriptEnv, runScript } = require('./scripts');
+const { gitInfo, mergePr } = require('./gitinfo');
 
 // The native Claude Code installer puts `claude` in ~/.local/bin, which shells and GUI launches often lack.
 const localBin = path.join(require('node:os').homedir(), '.local', 'bin');
@@ -300,6 +301,20 @@ ipcMain.handle('agent:run', async (_e, id, name) => {
   await agent.jobs.run?.kill();
   startScript(agent, 'run', run.command);
   return true;
+});
+ipcMain.handle('agent:git', (_e, id) => {
+  const agent = agents.get(id);
+  return agent?.worktree.dir ? gitInfo(agent.worktree.dir, agent.worktree.branch) : null;
+});
+ipcMain.handle('agent:merge', async (_e, id, number) => {
+  const agent = agents.get(id);
+  if (!agent?.worktree.dir || !Number.isInteger(number)) return { error: 'Unknown pull request.' };
+  try {
+    await mergePr(agent.worktree.dir, number);
+    return { ok: true };
+  } catch (e) {
+    return { error: (e.stderr?.trim() || e.message).split('\n')[0] };
+  }
 });
 ipcMain.handle('agent:runStop', (_e, id) => agents.get(id)?.jobs.run?.kill());
 

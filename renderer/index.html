@@ -48,6 +48,18 @@
     #panel { width: 42%; min-width: 360px; display: flex; flex-direction: column; border-left: 1px solid var(--bd); }
     #panel[hidden] { display: none; }
     #out { flex: 1; overflow: auto; padding: 10px 12px; }
+    #git, #scripts { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    #git { border-bottom: 1px solid var(--bd); }
+    #scripts[hidden] { display: none; }
+    #prs { padding: 8px 12px 0; display: flex; flex-direction: column; gap: 6px; }
+    .pr { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .pr .status { flex: 1; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pr .status.ok { color: #2e9e4f; } .pr .status.bad { color: #d33; }
+    .gitHead { padding: 8px 12px; font-size: 13px; }
+    #files { flex: 1; overflow: auto; padding: 0 12px 8px; font-size: 12px; }
+    .file { display: flex; gap: 8px; padding: 3px 0; }
+    .file .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .add { color: #2e9e4f; } .del { color: #d33; }
     #chatView[hidden], #createView[hidden], #settingsView[hidden] { display: none; }
     #side #list + .nav { border-top: 1px solid var(--bd); }
     #settingsView { flex: 1; overflow: auto; padding: 24px 32px; }
@@ -177,7 +189,13 @@
         </div>
       </form>
       </div>
-      <aside id="panel" aria-label="Scripts">
+      <aside id="panel">
+        <section id="git" aria-label="Git">
+          <div id="prs"></div>
+          <div class="row gitHead"><b id="filesSum"></b><span class="spacer"></span><button class="icon" id="gitRefresh" title="Refresh" aria-label="Refresh git info">↻</button></div>
+          <div id="files"></div>
+        </section>
+        <section id="scripts" aria-label="Scripts">
         <div id="tabs" class="row">
           <button class="tabBtn" data-tab="setup">Setup</button>
           <button class="tabBtn" data-tab="run">Run</button>
@@ -187,6 +205,7 @@
           <button class="btn" id="runBtn">▶ Run</button>
         </div>
         <div id="out"></div>
+        </section>
       </aside>
     </section>
   </main>
