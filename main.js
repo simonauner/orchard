@@ -4,6 +4,7 @@ const path = require('node:path');
 const { Agent, checkExecutable, claudeDefaults, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify } = require('./agent');
 const { loadConfig, scriptEnv, runScript } = require('./scripts');
 const { gitInfo, mergePr } = require('./gitinfo');
+const pty = require('node-pty');
 
 // The native Claude Code installer puts `claude` in ~/.local/bin, which shells and GUI launches often lack.
 const localBin = path.join(require('node:os').homedir(), '.local', 'bin');
@@ -84,7 +85,29 @@ function startScript(agent, kind, command) {
   return job;
 }
 
-const stopJobs = (agent) => Promise.all(Object.values(agent.jobs).filter(Boolean).map((j) => j.kill()));
+// The Terminal tab: one interactive login shell per agent in its worktree, started when the tab first opens.
+// shortcut: keeps the last 200k chars as scrollback for reopening (may cut an escape sequence); fine for a dev shell.
+function openTerm(agent, cols, rows) {
+  if (agent.term) return agent.term.buffer;
+  const env = { ...scriptEnv({ ...agent.worktree, port: agent.port }), TERM: 'xterm-256color' };
+  const p = pty.spawn(process.env.SHELL || '/bin/zsh', ['-l'], { name: 'xterm-256color', cwd: agent.worktree.dir, env, cols, rows });
+  const term = (agent.term = { p, buffer: '' });
+  p.onData((d) => {
+    term.buffer = (term.buffer + d).slice(-200000);
+    toUi('term:data', agent.id, d);
+  });
+  p.onExit(() => {
+    if (agent.term === term) agent.term = null;
+    toUi('term:exit', agent.id);
+  });
+  return '';
+}
+const validSize = (cols, rows) => Number.isInteger(cols) && Number.isInteger(rows) && cols > 0 && rows > 0;
+
+const stopJobs = (agent) => {
+  agent.term?.p.kill();
+  return Promise.all(Object.values(agent.jobs).filter(Boolean).map((j) => j.kill()));
+};
 
 ipcMain.handle('workspaces:list', () => ({ workspaces, hidden }));
 
@@ -316,6 +339,13 @@ ipcMain.handle('agent:merge', async (_e, id, number) => {
     return { error: (e.stderr?.trim() || e.message).split('\n')[0] };
   }
 });
+ipcMain.handle('term:open', (_e, id, cols, rows) => {
+  const agent = agents.get(id);
+  if (!agent?.worktree.dir || !validSize(cols, rows)) return null;
+  return openTerm(agent, cols, rows);
+});
+ipcMain.on('term:input', (_e, id, data) => agents.get(id)?.term?.p.write(String(data)));
+ipcMain.on('term:resize', (_e, id, cols, rows) => { if (validSize(cols, rows)) agents.get(id)?.term?.p.resize(cols, rows); });
 ipcMain.handle('agent:runStop', (_e, id) => agents.get(id)?.jobs.run?.kill());
 
 // Never leave orphaned claude processes behind.

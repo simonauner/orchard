@@ -1,6 +1,6 @@
 // agents: { id, name, status, branch, workspace, runs, lines: [{cls, text}] | null until loaded,
 //          logs: { setup|run: [...] } (this run of the app only), running: {setup, run} }
-// tab: the open tab of the right-hand script panel ('setup' | 'run').
+// tab: the open tab of the right-hand script panel ('setup' | 'run' | 'terminal').
 const state = { workspaces: [], hidden: [], hiddenOpen: false, agents: new Map(), active: null, view: 'create', tab: 'run' };
 
 const $ = (id) => document.getElementById(id);
@@ -16,11 +16,8 @@ function addLine(agent, cls, text, tab = 'chat') {
   else { syncPanel(agent); if (state.tab === tab) appendLineEl({ cls, text }, outEl); }
 }
 
-// The panel shows once the worktree exists; the scripts half only when the repo has scripts or something was printed.
-const syncPanel = (a) => {
-  $('panel').hidden = !a.branch;
-  $('scripts').hidden = !a.configFile && !a.logs.setup.length && !a.logs.run.length;
-};
+// The panel shows once the worktree exists.
+const syncPanel = (a) => { $('panel').hidden = !a.branch; };
 
 // Agent output is untrusted: show raw HTML as text instead of rendering it.
 const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -268,7 +265,7 @@ async function select(id) {
   showTab(state.tab);
   renderGit(a);
   refreshGit(id);
-  input.focus();
+  if (state.tab !== 'terminal') input.focus();
 }
 
 function showTab(tab) {
@@ -281,8 +278,48 @@ function showTab(tab) {
   $('runBtn').hidden = !a.runs.length;
   syncRunBtns(a);
   syncPanel(a);
-  renderOut(a);
+  $('out').hidden = tab === 'terminal';
+  $('term').hidden = tab !== 'terminal';
+  if (tab === 'terminal') showTerm(a);
+  else renderOut(a);
 }
+
+// ---- Terminal tab: one xterm showing the open agent's shell, which lives in main ----
+// termFor: the agent whose shell the xterm shows; null while (re)loading, so no output is written twice.
+let xterm = null, fit = null, termFor = null;
+
+async function showTerm(a) {
+  if (!a.branch) return; // no worktree yet
+  if (!xterm) {
+    const light = !matchMedia('(prefers-color-scheme: dark)').matches;
+    xterm = new Terminal({ fontFamily: 'ui-monospace, monospace', fontSize: 12, cursorBlink: true,
+      theme: light ? { background: '#ffffff', foreground: '#111111', cursor: '#111111', selectionBackground: '#0003' } : {} });
+    fit = new FitAddon.FitAddon();
+    xterm.loadAddon(fit);
+    xterm.open($('term'));
+    xterm.onData((d) => termFor && window.agents.termInput(termFor, d));
+    xterm.onResize(({ cols, rows }) => termFor && window.agents.termResize(termFor, cols, rows));
+    new ResizeObserver(() => { if (!$('term').hidden) fit.fit(); }).observe($('term'));
+  }
+  fit.fit();
+  if (termFor !== a.id) {
+    termFor = null;
+    xterm.reset();
+    const scrollback = await window.agents.termOpen(a.id, xterm.cols, xterm.rows);
+    if (state.active !== a.id || state.tab !== 'terminal' || scrollback == null) return; // switched away meanwhile
+    termFor = a.id;
+    xterm.write(scrollback);
+    window.agents.termResize(a.id, xterm.cols, xterm.rows); // a reopened shell may have another size
+  }
+  xterm.focus();
+}
+
+window.agents.onTermData((id, data) => { if (id === termFor) xterm.write(data); });
+window.agents.onTermExit((id) => {
+  if (id !== termFor) return;
+  termFor = null;
+  xterm.write('\r\n[shell exited, click Terminal to start a new one]\r\n');
+});
 
 // While a run script is going: Stop, and "Open :port" once it has printed a localhost URL.
 function syncRunBtns(a) {

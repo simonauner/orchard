@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
   <title>Orchard</title>
+  <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css" />
   <style>
     :root { color-scheme: light dark; --bd: #8884; --muted: #888; --hover: #8882; --card: #8881; }
     * { box-sizing: border-box; }
@@ -50,7 +51,8 @@
     #out { flex: 1; overflow: auto; padding: 10px 12px; }
     #git, #scripts { flex: 1; min-height: 0; display: flex; flex-direction: column; }
     #git { border-bottom: 1px solid var(--bd); }
-    #scripts[hidden] { display: none; }
+    #term { flex: 1; min-height: 0; padding: 8px 0 0 12px; }
+    #out[hidden], #term[hidden] { display: none; }
     #prs { padding: 8px 12px 0; display: flex; flex-direction: column; gap: 6px; }
     .pr { display: flex; align-items: center; gap: 8px; font-size: 13px; }
     .pr .status { flex: 1; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -199,17 +201,21 @@
         <div id="tabs" class="row">
           <button class="tabBtn" data-tab="setup">Setup</button>
           <button class="tabBtn" data-tab="run">Run</button>
+          <button class="tabBtn" data-tab="terminal">Terminal</button>
           <span class="spacer"></span>
           <select id="runSel" aria-label="Run script"></select>
           <a class="btn" id="openBtn" target="_blank" hidden></a>
           <button class="btn" id="runBtn">▶ Run</button>
         </div>
         <div id="out"></div>
+        <div id="term" hidden></div>
         </section>
       </aside>
     </section>
   </main>
   <script src="../node_modules/marked/lib/marked.umd.js"></script>
+  <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

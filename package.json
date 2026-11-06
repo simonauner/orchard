@@ -6,14 +6,17 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "postinstall": "[ \"$(uname)\" != Darwin ] || /usr/libexec/PlistBuddy -c 'Set :CFBundleName Orchard' -c 'Set :CFBundleDisplayName Orchard' node_modules/electron/dist/Electron.app/Contents/Info.plist",
+    "postinstall": "[ \"$(uname)\" != Darwin ] || { /usr/libexec/PlistBuddy -c 'Set :CFBundleName Orchard' -c 'Set :CFBundleDisplayName Orchard' node_modules/electron/dist/Electron.app/Contents/Info.plist && chmod +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper; }",
     "test": "node test/agent.test.js && node test/worktree.test.js && node test/settings.test.js && node test/scripts.test.js && node test/gitinfo.test.js"
   },
   "devDependencies": {
     "electron": "^33.0.0"
   },
   "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "marked": "^18.1.3",
+    "node-pty": "^1.1.0",
     "smol-toml": "^1.6.1"
   }
 }
