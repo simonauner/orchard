@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, Notification, shell, clipboard } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
-const { Agent, checkExecutable, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify } = require('./agent');
+const { Agent, checkExecutable, claudeDefaults, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify } = require('./agent');
 const { loadConfig, scriptEnv, runScript } = require('./scripts');
 
 // The native Claude Code installer puts `claude` in ~/.local/bin, which shells and GUI launches often lack.
@@ -59,6 +59,7 @@ function toUi(...args) {
 function publicInfo(a) {
   return {
     id: a.id, status: a.status, name: a.task, branch: a.worktree.branch, workspace: a.worktree.root, model: a.model, effort: a.effort,
+    defaults: claudeDefaults(a.cwd), // the worktree once it exists, the repo before that
     configFile: a.config?.file || null, runs: a.config?.run.map((r) => ({ name: r.name, default: r.default })) || [],
   };
 }
@@ -84,6 +85,8 @@ const stopJobs = (agent) => Promise.all(Object.values(agent.jobs).filter(Boolean
 
 ipcMain.handle('workspaces:list', () => workspaces);
 ipcMain.handle('clipboard:write', (_e, data) => clipboard.write({ text: String(data.text ?? ''), html: data.html ? String(data.html) : undefined }));
+
+ipcMain.handle('claude:defaults', (_e, workspace) => (workspaces.includes(workspace) ? claudeDefaults(workspace) : {}));
 
 ipcMain.handle('settings:get', () => settings);
 ipcMain.handle('settings:status', () => claudeStatus(claudeCommand()));

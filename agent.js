@@ -145,6 +145,25 @@ async function claudeStatus(command = 'claude', args = []) {
   }
 }
 
+// What claude picks when no --model/--effort is passed: env, then local > project > user settings.
+// shortcut: ignores managed (enterprise) settings, read them too if someone relies on those.
+function claudeDefaults(cwd, env = process.env) {
+  const configDir = env.CLAUDE_CONFIG_DIR || path.join(require('node:os').homedir(), '.claude');
+  const files = [path.join(configDir, 'settings.json'), path.join(cwd, '.claude', 'settings.json'), path.join(cwd, '.claude', 'settings.local.json')];
+  const out = { model: null, effort: null };
+  for (const f of files) {
+    let s;
+    try {
+      s = JSON.parse(fs.readFileSync(f, 'utf8'));
+    } catch {
+      continue; // missing or unreadable: claude skips it too
+    }
+    if (typeof s?.model === 'string') out.model = s.model;
+    if (typeof s?.effortLevel === 'string') out.effort = s.effortLevel;
+  }
+  return { model: env.ANTHROPIC_MODEL || out.model, effort: env.CLAUDE_CODE_EFFORT_LEVEL || out.effort };
+}
+
 // A custom executable must be an absolute path to something we may run.
 function checkExecutable(file) {
   if (!path.isAbsolute(file)) throw new Error('The path must be absolute.');
@@ -191,5 +210,5 @@ async function removeWorktree({ root, dir }) {
 }
 
 module.exports = {
-  Agent, MODELS, EFFORTS, checkExecutable, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify,
+  Agent, MODELS, EFFORTS, checkExecutable, claudeDefaults, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify,
 };
