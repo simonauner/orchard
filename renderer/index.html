@@ -35,7 +35,11 @@
     select { background: none; border: 0; cursor: pointer; padding: 4px; }
     #createBtn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--bd); cursor: pointer; }
     #err { color: #d33; margin-top: 8px; font-size: 13px; }
-    #chatView { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    #chatView { flex: 1; display: flex; min-height: 0; }
+    #chatCol { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    #panel { width: 42%; min-width: 360px; display: flex; flex-direction: column; border-left: 1px solid var(--bd); }
+    #panel[hidden] { display: none; }
+    #out { flex: 1; overflow: auto; padding: 10px 12px; }
     #chatView[hidden], #createView[hidden], #settingsView[hidden] { display: none; }
     #side #list + .nav { border-top: 1px solid var(--bd); }
     #settingsView { flex: 1; overflow: auto; padding: 24px 32px; }
@@ -49,7 +53,7 @@
     #stTable { width: 100%; border-collapse: collapse; border: 1px solid var(--bd); }
     #stTable th, #stTable td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--bd); font-weight: normal; }
     #stTable th { color: var(--muted); width: 150px; border-right: 1px solid var(--bd); }
-    .btn { padding: 5px 10px; border-radius: 6px; border: 1px solid var(--bd); background: none; cursor: pointer; white-space: nowrap; }
+    .btn { text-decoration: none; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--bd); background: none; cursor: pointer; white-space: nowrap; }
     #settingsView .row input { flex: 1; padding: 6px 8px; font-family: ui-monospace, monospace; font-size: 12px; }
     code { font-family: ui-monospace, monospace; font-size: 12px; }
     .bad-text { color: #d33; }
@@ -78,12 +82,12 @@
     .msg.assistant:hover .actions, .actions:focus-within { visibility: visible; }
     .tool { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
     .meta { color: var(--muted); font-size: 12px; }
-    #tabs { padding: 0 16px; border-bottom: 1px solid var(--bd); }
-    .tabBtn { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 4px; cursor: pointer; color: var(--muted); }
+    #tabs { padding: 0 12px; border-bottom: 1px solid var(--bd); min-height: 41px; }
+    .tabBtn { white-space: nowrap; background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 4px; cursor: pointer; color: var(--muted); }
     .tabBtn.active { color: inherit; border-bottom-color: currentColor; }
     .tabBtn.running::after { content: ' ●'; color: #2e9e4f; }
-    .out { margin: 0; white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 12px; }
-    #form[hidden], #runSel[hidden], #runBtn[hidden] { display: none; }
+    .out { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, monospace; font-size: 12px; }
+    #form[hidden], #runSel[hidden], #runBtn[hidden], #openBtn[hidden] { display: none; }
     .fold > summary { color: var(--muted); font-size: 12px; cursor: pointer; }
     .fold[open] > summary { margin-bottom: 12px; }
     .fold > .msg { padding-left: 14px; border-left: 2px solid var(--bd); margin-bottom: 0; padding-bottom: 12px; }
@@ -153,15 +157,8 @@
       <p><code id="settingsFile">~/.claude/settings.json</code></p>
     </section>
     <section id="chatView" hidden>
+      <div id="chatCol">
       <div id="title"><b></b><small></small></div>
-      <div id="tabs" class="row">
-        <button class="tabBtn" data-tab="chat">Chat</button>
-        <button class="tabBtn" data-tab="setup">Setup</button>
-        <button class="tabBtn" data-tab="run">Run</button>
-        <span class="spacer"></span>
-        <select id="runSel" aria-label="Run script"></select>
-        <button class="btn" id="runBtn">▶ Run</button>
-      </div>
       <div id="log"></div>
       <form class="card" id="form">
         <textarea id="text" placeholder="Message the agent…" aria-label="Message the agent"></textarea>
@@ -171,6 +168,18 @@
           <button id="go" title="Send" aria-label="Send">↑</button>
         </div>
       </form>
+      </div>
+      <aside id="panel" aria-label="Scripts">
+        <div id="tabs" class="row">
+          <button class="tabBtn" data-tab="setup">Setup</button>
+          <button class="tabBtn" data-tab="run">Run</button>
+          <span class="spacer"></span>
+          <select id="runSel" aria-label="Run script"></select>
+          <a class="btn" id="openBtn" target="_blank" hidden></a>
+          <button class="btn" id="runBtn">▶ Run</button>
+        </div>
+        <div id="out"></div>
+      </aside>
     </section>
   </main>
   <script src="../node_modules/marked/lib/marked.umd.js"></script>
