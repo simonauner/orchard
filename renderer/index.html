@@ -57,7 +57,23 @@
     #title small { color: var(--muted); margin-left: 8px; }
     #log { flex: 1; overflow: auto; padding: 16px; }
     .msg { margin: 0 0 12px; white-space: pre-wrap; line-height: 1.45; }
-    .you { color: var(--muted); }
+    .msg.you { margin-left: auto; width: fit-content; max-width: 75%; padding: 8px 12px; border-radius: 14px; background: var(--hover); }
+    .msg.assistant { white-space: normal; }
+    .md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
+    .md p, .md ul, .md ol, .md pre, .md table, .md blockquote { margin: 0 0 10px; }
+    .md h1, .md h2, .md h3, .md h4 { font-size: 15px; margin: 14px 0 6px; }
+    .md ul, .md ol { padding-left: 22px; }
+    .md code { padding: 1px 4px; border: 1px solid var(--bd); border-radius: 4px; }
+    .md pre { padding: 10px 12px; border-radius: 8px; background: var(--card); overflow-x: auto; }
+    .md pre code { padding: 0; border: 0; }
+    .md table { border-collapse: collapse; }
+    .md th, .md td { border: 1px solid var(--bd); padding: 4px 8px; text-align: left; }
+    .md blockquote { padding-left: 10px; border-left: 3px solid var(--bd); color: var(--muted); }
+    .md a { color: #4c8dff; }
+    .actions { display: flex; gap: 2px; margin-top: 4px; visibility: hidden; }
+    .actions .icon { font-size: 11px; font-weight: 600; min-width: 24px; height: 22px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; }
+    .actions .icon:hover { background: var(--hover); }
+    .msg.assistant:hover .actions, .actions:focus-within { visibility: visible; }
     .tool { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
     .meta { color: var(--muted); font-size: 12px; }
     #tabs { padding: 0 16px; border-bottom: 1px solid var(--bd); }
@@ -155,6 +171,7 @@
       </form>
     </section>
   </main>
+  <script src="../node_modules/marked/lib/marked.umd.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>
