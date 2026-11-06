@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('agents', {
+  copy: (data) => ipcRenderer.invoke('clipboard:write', data),
   workspaces: () => ipcRenderer.invoke('workspaces:list'),
   addWorkspace: () => ipcRenderer.invoke('workspaces:add'),
   settings: () => ipcRenderer.invoke('settings:get'),
