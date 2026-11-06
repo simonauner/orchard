@@ -1,5 +1,5 @@
 // agents: { id, name, status, branch, workspace, lines: [{cls, text}] }
-const state = { workspaces: [], agents: new Map(), active: null };
+const state = { workspaces: [], agents: new Map(), active: null, view: 'create' };
 
 const $ = (id) => document.getElementById(id);
 const listEl = $('list'), logEl = $('log'), input = $('text');
@@ -52,7 +52,8 @@ function renderList() {
       listEl.appendChild(item);
     }
   }
-  $('navCreate').classList.toggle('active', state.active == null);
+  $('navCreate').classList.toggle('active', state.view === 'create');
+  $('navSettings').classList.toggle('active', state.view === 'settings');
 }
 
 function renderWorkspaceSelect(selected) {
@@ -67,27 +68,29 @@ function renderWorkspaceSelect(selected) {
   if (selected) sel.value = selected;
 }
 
+function showView(name) {
+  state.view = name;
+  for (const v of ['create', 'chat', 'settings']) $(v + 'View').hidden = v !== name;
+  if (name !== 'chat') state.active = null;
+  renderList();
+}
+
 function showCreate(ws) {
-  state.active = null;
-  $('chatView').hidden = true;
-  $('createView').hidden = false;
+  showView('create');
   $('err').textContent = '';
   renderWorkspaceSelect(ws || $('ws').value);
-  renderList();
   $('prompt').focus();
 }
 
 function select(id) {
   state.active = id;
   const a = state.agents.get(id);
-  $('createView').hidden = true;
-  $('chatView').hidden = false;
+  showView('chat');
   $('title').querySelector('b').textContent = a.name;
   $('title').querySelector('small').textContent = `${basename(a.workspace)} · ${a.branch}`;
   logEl.innerHTML = '';
   a.lines.forEach(appendLineEl);
   input.focus();
-  renderList();
 }
 
 // Turn one stream-json event into readable lines.
@@ -109,6 +112,62 @@ function handleEvent(agent, evt) {
 }
 
 $('navCreate').onclick = () => showCreate();
+
+// ---- Settings ----
+const PROVIDERS = { firstParty: 'Anthropic API', bedrock: 'Amazon Bedrock', vertex: 'Google Vertex AI', foundry: 'Microsoft Foundry' };
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+function loginMethod(st) {
+  if (st.authMethod === 'claude.ai') return st.subscriptionType ? `Claude ${cap(st.subscriptionType)} account` : 'Claude.ai account';
+  return st.authMethod || '—';
+}
+
+async function refreshStatus() {
+  $('stDot').className = 'dot';
+  $('stText').textContent = 'Checking…';
+  $('refresh').disabled = true;
+  const st = await window.agents.status();
+  $('refresh').disabled = false;
+  const connected = st.ok && st.loggedIn;
+  $('stDot').className = 'dot ' + (connected ? 'ok' : 'bad');
+  $('stText').textContent = connected ? 'Connected' : st.ok ? 'Not logged in' : 'Not available';
+  const rows = st.ok
+    ? [['Version', st.version], ['Provider', PROVIDERS[st.apiProvider] || st.apiProvider], ['Login method', loginMethod(st)],
+       ['Organization', st.orgName], ['Email', st.email]]
+    : [];
+  const table = $('stTable');
+  table.innerHTML = '';
+  table.hidden = !rows.length;
+  for (const [k, v] of rows) {
+    const tr = document.createElement('tr');
+    tr.append(el('th', null, k), el('td', null, v || '—'));
+    table.appendChild(tr);
+  }
+  $('stHint').className = st.ok ? 'meta' : 'meta bad-text';
+  $('stHint').textContent = !st.ok ? st.error : connected ? '' : 'Run claude auth login in a terminal, then Refresh.';
+  if (st.configDirectory) $('settingsFile').textContent = st.configDirectory.replace(/\/$/, '') + '/settings.json';
+}
+
+async function saveClaudePath(file) {
+  const res = await window.agents.setClaudePath(file);
+  $('pathMsg').className = res.error ? 'meta bad-text' : 'meta';
+  $('pathMsg').textContent = res.error || (res.claudePath ? 'Saved.' : 'Using claude from PATH.');
+  if (!res.error) { $('claudePath').value = res.claudePath; refreshStatus(); }
+}
+
+$('navSettings').onclick = async () => {
+  showView('settings');
+  $('pathMsg').textContent = '';
+  $('claudePath').value = (await window.agents.settings()).claudePath;
+  refreshStatus();
+};
+$('refresh').onclick = refreshStatus;
+$('claudePath').onchange = () => saveClaudePath($('claudePath').value);
+$('systemClaude').onclick = () => saveClaudePath('');
+$('browse').onclick = async () => {
+  const file = await window.agents.browseClaude();
+  if (file) saveClaudePath(file);
+};
 
 $('addWs').onclick = async () => {
   const res = await window.agents.addWorkspace();

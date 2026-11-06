@@ -36,7 +36,23 @@
     #createBtn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--bd); cursor: pointer; }
     #err { color: #d33; margin-top: 8px; font-size: 13px; }
     #chatView { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-    #chatView[hidden], #createView[hidden] { display: none; }
+    #chatView[hidden], #createView[hidden], #settingsView[hidden] { display: none; }
+    #side #list + .nav { border-top: 1px solid var(--bd); }
+    #settingsView { flex: 1; overflow: auto; padding: 24px 32px; }
+    #settingsView > * { max-width: 700px; }
+    #settingsView h1 { font-size: 20px; margin: 0 0 20px; }
+    #settingsView h2 { font-size: 14px; margin: 28px 0 4px; }
+    .tab { display: inline-block; padding: 0 0 8px; border-bottom: 2px solid currentColor; font-weight: 600; margin-bottom: 16px; }
+    .statusRow { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; }
+    .statusRow > span { display: flex; align-items: center; gap: 6px; }
+    .dot.ok { background: #2e9e4f; } .dot.bad { background: #d33; }
+    #stTable { width: 100%; border-collapse: collapse; border: 1px solid var(--bd); }
+    #stTable th, #stTable td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--bd); font-weight: normal; }
+    #stTable th { color: var(--muted); width: 150px; border-right: 1px solid var(--bd); }
+    .btn { padding: 5px 10px; border-radius: 6px; border: 1px solid var(--bd); background: none; cursor: pointer; white-space: nowrap; }
+    #settingsView .row input { flex: 1; padding: 6px 8px; font-family: ui-monospace, monospace; font-size: 12px; }
+    code { font-family: ui-monospace, monospace; font-size: 12px; }
+    .bad-text { color: #d33; }
     #title { padding: 10px 16px; border-bottom: 1px solid var(--bd); }
     #title small { color: var(--muted); margin-left: 8px; }
     #log { flex: 1; overflow: auto; padding: 16px; }
@@ -53,6 +69,7 @@
     <button class="nav" id="navCreate">+ Create</button>
     <div class="section"><span>Workspaces</span><button class="icon" id="addWs" title="Add workspace" aria-label="Add workspace">+</button></div>
     <div id="list"></div>
+    <button class="nav" id="navSettings">Settings</button>
   </nav>
   <main>
     <section id="createView">
@@ -82,6 +99,28 @@
         </div>
       </form>
       <div id="err" role="alert"></div>
+    </section>
+    <section id="settingsView" hidden>
+      <h1>Agents</h1>
+      <div class="tab">Claude Code</div>
+      <div class="statusRow">
+        <span><span class="dot" id="stDot"></span><span id="stText">Checking…</span></span>
+        <button class="btn" id="refresh">↻ Refresh</button>
+      </div>
+      <table id="stTable"></table>
+      <p id="stHint" class="meta"></p>
+
+      <h2>Claude Code executable path</h2>
+      <p class="meta">Leave empty to use <code>claude</code> from your PATH. Applies to agents created after the change.</p>
+      <div class="row">
+        <input id="claudePath" placeholder="claude (from PATH)" aria-label="Claude Code executable path" autocomplete="off" spellcheck="false" />
+        <button class="btn" id="browse">Browse…</button>
+        <button class="btn" id="systemClaude">Use system Claude Code</button>
+      </div>
+      <p id="pathMsg" class="meta" role="alert"></p>
+
+      <h2>Claude settings</h2>
+      <p><code id="settingsFile">~/.claude/settings.json</code></p>
     </section>
     <section id="chatView" hidden>
       <div id="title"><b></b><small></small></div>

@@ -1,26 +1,33 @@
 const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
-const { Agent, createWorktree, removeWorktree, repoRoot } = require('./agent');
+const { Agent, checkExecutable, claudeStatus, createWorktree, removeWorktree, repoRoot } = require('./agent');
 
 let win = null;
 const agents = new Map();
 let nextId = 1;
 
-// Workspaces = repo roots the user has added, kept across restarts.
-const workspacesFile = () => path.join(app.getPath('userData'), 'workspaces.json');
-let workspaces = [];
-function loadWorkspaces() {
+// Small JSON files in the user data folder, kept across restarts.
+const storeFile = (name) => path.join(app.getPath('userData'), name);
+function readJson(name, fallback) {
   try {
-    workspaces = JSON.parse(fs.readFileSync(workspacesFile(), 'utf8')).filter((w) => typeof w === 'string');
+    return JSON.parse(fs.readFileSync(storeFile(name), 'utf8'));
   } catch {
-    workspaces = []; // first run or unreadable file
+    return fallback; // first run or unreadable file
   }
 }
-function saveWorkspaces() {
-  fs.mkdirSync(path.dirname(workspacesFile()), { recursive: true });
-  fs.writeFileSync(workspacesFile(), JSON.stringify(workspaces, null, 2));
+function writeJson(name, value) {
+  fs.mkdirSync(app.getPath('userData'), { recursive: true });
+  fs.writeFileSync(storeFile(name), JSON.stringify(value, null, 2));
 }
+
+// Workspaces = repo roots the user has added.
+let workspaces = [];
+const saveWorkspaces = () => writeJson('workspaces.json', workspaces);
+
+// settings.claudePath: custom Claude Code executable, empty = `claude` from PATH.
+let settings = { claudePath: '' };
+const claudeCommand = () => settings.claudePath || 'claude';
 
 function createWindow() {
   win = new BrowserWindow({
@@ -46,6 +53,27 @@ function publicInfo(a) {
 
 ipcMain.handle('workspaces:list', () => workspaces);
 
+ipcMain.handle('settings:get', () => settings);
+ipcMain.handle('settings:status', () => claudeStatus(claudeCommand()));
+
+ipcMain.handle('settings:browseClaude', async () => {
+  const res = await dialog.showOpenDialog(win, { title: 'Choose the Claude Code executable', properties: ['openFile'] });
+  return res.canceled ? null : res.filePaths[0];
+});
+
+// Only affects agents created after the change.
+ipcMain.handle('settings:setClaudePath', (_e, file) => {
+  file = String(file ?? '').trim();
+  try {
+    if (file) checkExecutable(file);
+  } catch (e) {
+    return { error: e.message };
+  }
+  settings = { ...settings, claudePath: file };
+  writeJson('settings.json', settings);
+  return settings;
+});
+
 ipcMain.handle('workspaces:add', async () => {
   const res = await dialog.showOpenDialog(win, { title: 'Add a git repo as workspace', properties: ['openDirectory'] });
   if (res.canceled || !res.filePaths[0]) return null;
@@ -69,7 +97,7 @@ ipcMain.handle('agent:create', async (_e, { workspace, prompt, model, effort } =
   let agent;
   try {
     // Validates model/effort before anything is created on disk.
-    agent = new Agent({ id: nextId++, cwd: workspace, model: model || null, effort: effort || null });
+    agent = new Agent({ id: nextId++, cwd: workspace, command: claudeCommand(), model: model || null, effort: effort || null });
     agent.worktree = await createWorktree(workspace, prompt.split('\n')[0]);
   } catch (e) {
     return { error: e.message };
@@ -111,6 +139,8 @@ ipcMain.handle('agent:stop', (_e, id) => agents.get(id)?.stop());
 app.on('before-quit', () => agents.forEach((a) => a.stop()));
 app.on('window-all-closed', () => app.quit());
 app.whenReady().then(() => {
-  loadWorkspaces();
+  workspaces = [].concat(readJson('workspaces.json', [])).filter((w) => typeof w === 'string');
+  const saved = readJson('settings.json', {});
+  settings = { claudePath: typeof saved.claudePath === 'string' ? saved.claudePath : '' };
   createWindow();
 });

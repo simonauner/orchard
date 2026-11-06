@@ -120,6 +120,29 @@ function slugify(task) {
     .replace(/^-+|-+$/g, '');
 }
 
+// What the settings view shows: version and login, straight from the CLI.
+async function claudeStatus(command = 'claude', args = []) {
+  const run = (...a) => execFileP(command, [...args, ...a], { timeout: 15000 }).then((r) => r.stdout.trim());
+  try {
+    const [version, auth] = await Promise.all([run('--version'), run('auth', 'status')]);
+    return { ok: true, version: version.split(' ')[0], ...JSON.parse(auth) };
+  } catch (e) {
+    if (e.code === 'ENOENT') return { ok: false, error: `Claude Code not found: ${command}` };
+    return { ok: false, error: e.stderr?.trim() || e.message };
+  }
+}
+
+// A custom executable must be an absolute path to something we may run.
+function checkExecutable(file) {
+  if (!path.isAbsolute(file)) throw new Error('The path must be absolute.');
+  try {
+    fs.accessSync(file, fs.constants.X_OK);
+  } catch {
+    throw new Error(`Not an executable file: ${file}`);
+  }
+  if (!fs.statSync(file).isFile()) throw new Error(`Not an executable file: ${file}`);
+}
+
 const repoRoot = (dir) => git(dir, 'rev-parse', '--show-toplevel');
 
 async function branchExists(root, branch) {
@@ -154,4 +177,6 @@ async function removeWorktree({ root, dir }) {
   await git(root, 'worktree', 'remove', dir);
 }
 
-module.exports = { Agent, MODELS, EFFORTS, createWorktree, removeWorktree, repoRoot, slugify };
+module.exports = {
+  Agent, MODELS, EFFORTS, checkExecutable, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify,
+};

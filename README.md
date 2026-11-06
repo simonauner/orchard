@@ -29,12 +29,22 @@ automatically, tools that need approval are denied and shown as "⛔ denied" in 
 uncommitted changes, git refuses and the worktree stays. The `agent/<slug>` branch is always kept.
 Worktrees are not removed when the app quits, and agents are not restored on the next start.
 
+## Settings
+
+"Settings" at the bottom of the sidebar shows which Claude Code the app uses: version, provider,
+login method, organization and email, read from `claude --version` and `claude auth status`.
+"Refresh" reads them again. If you are not logged in, run `claude auth login` in a terminal.
+
+You can point the app to a specific Claude Code executable (absolute path, must be executable).
+It is saved in `settings.json` in the app's user data folder and applies to agents created after
+the change. "Use system Claude Code" goes back to `claude` from your PATH.
+
 ## Structure
 
-- `agent.js` – `createWorktree`/`removeWorktree`/`repoRoot`, the model/effort allowlists and an `Agent` = one `claude -p --input-format stream-json --output-format stream-json --verbose` process. Reads JSON lines from stdout, writes JSON lines to stdin. No Electron dependency, testable on its own (`npm test`).
+- `agent.js` – `createWorktree`/`removeWorktree`/`repoRoot`, `claudeStatus`/`checkExecutable`, the model/effort allowlists and an `Agent` = one `claude -p --input-format stream-json --output-format stream-json --verbose` process. Reads JSON lines from stdout, writes JSON lines to stdin. No Electron dependency, testable on its own (`npm test`).
 - `main.js` – Electron main process. Keeps the workspace list and the agents, starts them, forwards events to the UI over IPC, shows a desktop notification when an agent finishes and stops all processes on quit.
 - `preload.js` – thin bridge (`window.agents`) between the UI and the main process.
-- `renderer/` – sidebar (workspaces with their agents), create view and chat view.
+- `renderer/` – sidebar (workspaces with their agents), create, chat and settings views.
 
 ## Next steps
 
