@@ -1,0 +1,19 @@
+main.js
+  s_b252f4e26f3492::t_a604967c61b779 6-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d960d6ec1ca7d0d6ffbcf93b647fdcdad4b5826b",
+  "prompts": {},
+  "sessions": {
+    "s_b252f4e26f3492": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aef2162a-bbe2-4163-8aaa-7c6bc9dc03a7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
