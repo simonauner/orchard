@@ -1,7 +1,7 @@
 // agents: { id, name, status, branch, workspace, runs, lines: [{cls, text}] | null until loaded,
 //          logs: { setup|run: [...] } (this run of the app only), running: {setup, run} }
 // tab: the open tab of the right-hand script panel ('setup' | 'run').
-const state = { workspaces: [], agents: new Map(), active: null, view: 'create', tab: 'run' };
+const state = { workspaces: [], hidden: [], hiddenOpen: false, agents: new Map(), active: null, view: 'create', tab: 'run' };
 
 const $ = (id) => document.getElementById(id);
 const listEl = $('list'), logEl = $('log'), outEl = $('out'), input = $('text');
@@ -104,35 +104,88 @@ function el(tag, cls, text) {
   return e;
 }
 
+function renderWorkspace(ws, target) {
+  const isHidden = state.hidden.includes(ws);
+  const head = el('div', 'ws');
+  head.title = ws;
+  head.appendChild(el('span', 'name', basename(ws)));
+  const more = el('button', 'icon more', '⋯');
+  more.title = more.ariaLabel = `Options for ${basename(ws)}`;
+  more.onclick = (e) => { e.stopPropagation(); openMenu(more, [
+    [isHidden ? 'Show repository' : 'Hide repository', () => setHidden(ws, !isHidden)],
+    ['Remove repository', () => removeWorkspace(ws), 'danger'],
+  ]); };
+  const plus = el('button', 'icon', '+');
+  plus.title = plus.ariaLabel = `New agent in ${basename(ws)}`;
+  plus.onclick = () => showCreate(ws);
+  head.append(more, plus);
+  target.appendChild(head);
+
+  for (const a of state.agents.values()) {
+    if (a.workspace !== ws) continue;
+    const item = el('div', 'item' + (a.id === state.active ? ' active' : ''));
+    item.title = `${a.status} · ${branchLabel(a)}`;
+    item.appendChild(el('span', `dot ${a.status}`));
+    item.appendChild(el('span', 'name', a.name));
+    const rm = el('button', 'icon rm', '×');
+    rm.title = rm.ariaLabel = 'Remove agent and worktree';
+    rm.onclick = (e) => { e.stopPropagation(); remove(a); };
+    item.appendChild(rm);
+    item.onclick = () => select(a.id);
+    target.appendChild(item);
+  }
+}
+
 function renderList() {
   listEl.innerHTML = '';
   if (!state.workspaces.length) listEl.appendChild(el('div', 'hint', 'Add a git repo with + to get started.'));
-  for (const ws of state.workspaces) {
-    const head = el('div', 'ws');
-    head.title = ws;
-    head.appendChild(el('span', null, basename(ws)));
-    const plus = el('button', 'icon', '+');
-    plus.title = plus.ariaLabel = `New agent in ${basename(ws)}`;
-    plus.onclick = () => showCreate(ws);
-    head.appendChild(plus);
-    listEl.appendChild(head);
-
-    for (const a of state.agents.values()) {
-      if (a.workspace !== ws) continue;
-      const item = el('div', 'item' + (a.id === state.active ? ' active' : ''));
-      item.title = `${a.status} · ${branchLabel(a)}`;
-      item.appendChild(el('span', `dot ${a.status}`));
-      item.appendChild(el('span', 'name', a.name));
-      const rm = el('button', 'icon rm', '×');
-      rm.title = rm.ariaLabel = 'Remove agent and worktree';
-      rm.onclick = (e) => { e.stopPropagation(); remove(a); };
-      item.appendChild(rm);
-      item.onclick = () => select(a.id);
-      listEl.appendChild(item);
-    }
+  for (const ws of state.workspaces) if (!state.hidden.includes(ws)) renderWorkspace(ws, listEl);
+  if (state.hidden.length) {
+    const box = el('details', 'hiddenWs');
+    box.open = state.hiddenOpen;
+    box.ontoggle = () => { state.hiddenOpen = box.open; };
+    box.appendChild(el('summary', null, `Hidden workspaces (${state.hidden.length})`));
+    for (const ws of state.hidden) renderWorkspace(ws, box);
+    listEl.appendChild(box);
   }
   $('navCreate').classList.toggle('active', state.view === 'create');
   $('navSettings').classList.toggle('active', state.view === 'settings');
+}
+
+// A small popup menu under `anchor`; items: [label, action, cls?]. Closes on any click or Escape.
+function openMenu(anchor, items) {
+  closeMenu();
+  const menu = el('div', 'menu');
+  menu.id = 'menu';
+  menu.setAttribute('role', 'menu');
+  for (const [label, action, cls] of items) {
+    const b = el('button', cls, label);
+    b.setAttribute('role', 'menuitem');
+    b.onclick = () => { closeMenu(); action(); };
+    menu.appendChild(b);
+  }
+  const r = anchor.getBoundingClientRect();
+  Object.assign(menu.style, { top: `${r.bottom + 4}px`, left: `${r.left}px` });
+  document.body.appendChild(menu);
+  menu.firstChild.focus();
+}
+const closeMenu = () => $('menu')?.remove();
+document.addEventListener('click', (e) => { if (!e.target.closest('#menu')) closeMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+
+async function setHidden(ws, hide) {
+  state.hidden = await window.agents.setHidden(ws, hide);
+  if (hide) state.hiddenOpen = false;
+  renderList();
+}
+
+async function removeWorkspace(ws) {
+  if (!confirm(`Remove ${basename(ws)} from Orchard? The repo on disk is not touched.`)) return;
+  const res = await window.agents.removeWorkspace(ws);
+  if (res.error) { alert(res.error); return; }
+  Object.assign(state, res);
+  if (state.view === 'create') showCreate();
+  else renderList();
 }
 
 function renderWorkspaceSelect(selected) {
@@ -423,7 +476,7 @@ window.agents.onStatus((id, status) => {
 });
 
 Promise.all([window.agents.workspaces(), window.agents.list()]).then(([ws, list]) => {
-  state.workspaces = ws;
+  Object.assign(state, ws);
   for (const info of list) state.agents.set(info.id, { ...info, lines: null, logs: { setup: [], run: [] }, running: {} }); // history loads on select
   showCreate();
 });

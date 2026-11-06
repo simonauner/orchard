@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('agents', {
   copy: (data) => ipcRenderer.invoke('clipboard:write', data),
   workspaces: () => ipcRenderer.invoke('workspaces:list'),
   addWorkspace: () => ipcRenderer.invoke('workspaces:add'),
+  setHidden: (ws, hide) => ipcRenderer.invoke('workspaces:setHidden', ws, hide),
+  removeWorkspace: (ws) => ipcRenderer.invoke('workspaces:remove', ws),
   defaults: (workspace) => ipcRenderer.invoke('claude:defaults', workspace),
   settings: () => ipcRenderer.invoke('settings:get'),
   status: () => ipcRenderer.invoke('settings:status'),

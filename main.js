@@ -29,6 +29,8 @@ function writeJson(name, value) {
 // Workspaces = repo roots the user has added.
 let workspaces = [];
 const saveWorkspaces = () => writeJson('workspaces.json', workspaces);
+// Hidden workspaces stay usable but sit in a collapsed sidebar section.
+let hidden = [];
 
 // settings.claudePath: custom Claude Code executable, empty = `claude` from PATH.
 let settings = { claudePath: '' };
@@ -83,7 +85,24 @@ function startScript(agent, kind, command) {
 
 const stopJobs = (agent) => Promise.all(Object.values(agent.jobs).filter(Boolean).map((j) => j.kill()));
 
-ipcMain.handle('workspaces:list', () => workspaces);
+ipcMain.handle('workspaces:list', () => ({ workspaces, hidden }));
+
+ipcMain.handle('workspaces:setHidden', (_e, ws, hide) => {
+  hidden = hidden.filter((w) => w !== ws);
+  if (hide && workspaces.includes(ws)) hidden.push(ws);
+  writeJson('hidden.json', hidden);
+  return hidden;
+});
+
+// Only forgets the repo; nothing on disk is touched.
+ipcMain.handle('workspaces:remove', (_e, ws) => {
+  if ([...agents.values()].some((a) => a.worktree.root === ws)) return { error: 'Remove its agents first.' };
+  workspaces = workspaces.filter((w) => w !== ws);
+  hidden = hidden.filter((w) => w !== ws);
+  saveWorkspaces();
+  writeJson('hidden.json', hidden);
+  return { workspaces, hidden };
+});
 ipcMain.handle('clipboard:write', (_e, data) => clipboard.write({ text: String(data.text ?? ''), html: data.html ? String(data.html) : undefined }));
 
 ipcMain.handle('claude:defaults', (_e, workspace) => (workspaces.includes(workspace) ? claudeDefaults(workspace) : {}));
@@ -289,6 +308,7 @@ app.on('before-quit', () => agents.forEach((a) => { a.stop(); stopJobs(a); }));
 app.on('window-all-closed', () => app.quit());
 app.whenReady().then(() => {
   workspaces = [].concat(readJson('workspaces.json', [])).filter((w) => typeof w === 'string');
+  hidden = [].concat(readJson('hidden.json', [])).filter((w) => workspaces.includes(w));
   const saved = readJson('settings.json', {});
   settings = { claudePath: typeof saved.claudePath === 'string' ? saved.claudePath : '' };
   restoreAgents();
