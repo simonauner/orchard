@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('agents', {
   workspaces: () => ipcRenderer.invoke('workspaces:list'),
   addWorkspace: () => ipcRenderer.invoke('workspaces:add'),
+  defaults: (workspace) => ipcRenderer.invoke('claude:defaults', workspace),
   settings: () => ipcRenderer.invoke('settings:get'),
   status: () => ipcRenderer.invoke('settings:status'),
   browseClaude: () => ipcRenderer.invoke('settings:browseClaude'),
