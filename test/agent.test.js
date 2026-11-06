@@ -16,7 +16,7 @@ agent.on('event', (e) => events.push(e));
 agent.on('status', (s) => statuses.push(s));
 
 agent.start();
-assert.strictEqual(agent.send('hej'), true);
+assert.strictEqual(agent.send('hello'), true);
 
 const timer = setTimeout(() => {
   console.error('timeout', { events, statuses });
@@ -32,13 +32,13 @@ agent.on('status', (s) => {
     .filter((b) => b.type === 'text')
     .map((b) => b.text)
     .join('');
-  assert.strictEqual(text, 'echo: hej');
+  assert.strictEqual(text, 'echo: hello');
   assert.strictEqual(agent.sessionId, 'sess-1');
   assert.deepStrictEqual(statuses, ['working', 'done']);
 
   agent.on('status', (s2) => {
     if (s2 !== 'stopped') return;
-    assert.strictEqual(agent.send('igen'), false);
+    assert.strictEqual(agent.send('again'), false);
     console.log('OK: spawn, send, stream, result, stop');
   });
   agent.stop();

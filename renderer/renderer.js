@@ -22,7 +22,7 @@ function renderList() {
   for (const a of state.agents.values()) {
     const el = document.createElement('div');
     el.className = 'item' + (a.id === state.active ? ' active' : '');
-    el.innerHTML = `<button class="rm" title="Ta bort agent och worktree" aria-label="Ta bort">×</button><span class="dot ${a.status}"></span><b></b><small></small>`;
+    el.innerHTML = `<button class="rm" title="Remove agent and worktree" aria-label="Remove agent">×</button><span class="dot ${a.status}"></span><b></b><small></small>`;
     el.querySelector('b').textContent = a.name;
     el.querySelector('small').textContent = `${a.status} · ${a.branch}`;
     el.querySelector('.rm').onclick = (e) => { e.stopPropagation(); remove(a); };
@@ -51,9 +51,9 @@ function handleEvent(agent, evt) {
     }
   } else if (evt.type === 'result') {
     const cost = evt.total_cost_usd != null ? ` · $${evt.total_cost_usd.toFixed(4)}` : '';
-    addLine(agent, 'meta', `klar${cost}`);
+    addLine(agent, 'meta', `done${cost}`);
     for (const d of evt.permission_denials ?? [])
-      addLine(agent, 'meta', `⛔ nekad: ${d.tool_name} ${JSON.stringify(d.tool_input).slice(0, 200)}`);
+      addLine(agent, 'meta', `⛔ denied: ${d.tool_name} ${JSON.stringify(d.tool_input).slice(0, 200)}`);
   } else if (evt.type === 'stderr' || evt.type === 'raw') {
     addLine(agent, 'meta', evt.text);
   }
@@ -71,9 +71,9 @@ $('newForm').onsubmit = async (e) => {
 };
 
 async function remove(agent) {
-  if (!confirm(`Ta bort agenten "${agent.name}" och dess worktree? Grenen ${agent.branch} behålls.`)) return;
+  if (!confirm(`Remove agent "${agent.name}" and its worktree? The branch ${agent.branch} is kept.`)) return;
   const res = await window.agents.remove(agent.id);
-  if (!res.ok) { addLine(agent, 'meta', `Kunde inte ta bort worktreen: ${res.error}`); return; }
+  if (!res.ok) { addLine(agent, 'meta', `Could not remove the worktree: ${res.error}`); return; }
   state.agents.delete(agent.id);
   if (state.active === agent.id) {
     state.active = null;
@@ -91,7 +91,7 @@ form.onsubmit = async (e) => {
   input.value = '';
   addLine(agent, 'you', '› ' + text);
   const ok = await window.agents.send(agent.id, text);
-  if (!ok) addLine(agent, 'meta', 'Agenten körs inte längre.');
+  if (!ok) addLine(agent, 'meta', 'The agent is no longer running.');
 };
 
 window.agents.onEvent((id, evt) => {

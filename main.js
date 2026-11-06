@@ -29,7 +29,7 @@ function publicInfo(a) {
 }
 
 ipcMain.handle('agent:create', async (_e, task) => {
-  const res = await dialog.showOpenDialog(win, { title: 'Välj git-repo', properties: ['openDirectory'] });
+  const res = await dialog.showOpenDialog(win, { title: 'Choose a git repo', properties: ['openDirectory'] });
   if (res.canceled || !res.filePaths[0]) return null;
 
   let worktree;
@@ -48,7 +48,7 @@ ipcMain.handle('agent:create', async (_e, task) => {
   agent.on('status', (status) => {
     toUi('agent:status', agent.id, status);
     if (status === 'done' && win && !win.isDestroyed() && !win.isFocused()) {
-      new Notification({ title: 'Agent klar', body: agent.task }).show();
+      new Notification({ title: 'Agent done', body: agent.task }).show();
     }
   });
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="sv">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
@@ -35,18 +35,18 @@
   <div id="side">
     <header>
       <form id="newForm">
-        <input id="task" placeholder="Uppgiftsnamn" aria-label="Uppgiftsnamn" autocomplete="off" required />
-        <button>+ Ny agent</button>
+        <input id="task" placeholder="Task name" aria-label="Task name" autocomplete="off" required />
+        <button>+ New agent</button>
       </form>
       <div id="err" class="meta" role="alert"></div>
     </header>
     <div id="list"></div>
   </div>
   <div id="main">
-    <div id="log"><div id="empty">Ange ett uppgiftsnamn och välj ett git-repo med "+ Ny agent".</div></div>
+    <div id="log"><div id="empty">Enter a task name and pick a git repo with "+ New agent".</div></div>
     <form id="form">
-      <input id="text" placeholder="Skriv till agenten…" autocomplete="off" disabled />
-      <button disabled id="go">Skicka</button>
+      <input id="text" placeholder="Message the agent…" autocomplete="off" disabled />
+      <button disabled id="go">Send</button>
     </form>
   </div>
   <script src="renderer.js"></script>

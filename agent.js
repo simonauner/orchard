@@ -110,7 +110,7 @@ function slugify(task) {
 // New branch agent/<slug> checked out in <repo>-worktrees/<slug>, next to the repo.
 async function createWorktree(repo, task) {
   const slug = slugify(task);
-  if (!slug) throw new Error('Uppgiftsnamnet måste innehålla bokstäver eller siffror.');
+  if (!slug) throw new Error('The task name must contain letters or digits.');
   const root = await git(repo, 'rev-parse', '--show-toplevel');
   const dir = path.join(`${root}-worktrees`, slug);
   const branch = `agent/${slug}`;

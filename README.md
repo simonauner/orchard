@@ -13,10 +13,10 @@ Requires `claude` on your PATH and a logged-in session (run `claude` once in a t
 
 ## Agents and worktrees
 
-Enter a task name, click "+ Ny agent" and pick a git repo. The app runs
+Enter a task name, click "+ New agent" and pick a git repo. The app runs
 `git worktree add -b agent/<task> <repo>-worktrees/<task>` and starts claude there.
 Claude runs with `--permission-mode acceptEdits`: file edits inside the worktree are approved
-automatically, other tools (e.g. Bash) are denied and shown as "⛔ nekad" in the chat.
+automatically, other tools (e.g. Bash) are denied and shown as "⛔ denied" in the chat.
 
 "×" stops the agent and runs `git worktree remove` (without `--force`). If the worktree has
 uncommitted changes, git refuses and the worktree stays. The `agent/<task>` branch is always kept.

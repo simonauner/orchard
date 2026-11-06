@@ -17,8 +17,8 @@ const git = (cwd, ...a) => execFileSync('git', ['-C', cwd, ...a], { encoding: 'u
   git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'init');
 
   try {
-    assert.strictEqual(slugify('  Fixa Ålder-bugg!! '), 'fixa-alder-bugg');
-    await assert.rejects(createWorktree(repo, '!!!'), /Uppgiftsnamnet/);
+    assert.strictEqual(slugify('  Fix Åland bug!! '), 'fix-aland-bug');
+    await assert.rejects(createWorktree(repo, '!!!'), /task name/);
     await assert.rejects(createWorktree(tmp, 'x'), /not a git repository/);
 
     // A subfolder of the repo resolves to the repo root.
