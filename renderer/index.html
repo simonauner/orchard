@@ -58,14 +58,16 @@
     #log { flex: 1; overflow: auto; padding: 16px; }
     .msg { margin: 0 0 12px; white-space: pre-wrap; line-height: 1.45; }
     .msg.you { margin-left: auto; width: fit-content; max-width: 75%; padding: 8px 12px; border-radius: 14px; background: var(--hover); }
-    .msg.assistant { white-space: normal; }
+    .msg.assistant { white-space: normal; font-size: 15px; line-height: 1.65; }
     .md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
-    .md p, .md ul, .md ol, .md pre, .md table, .md blockquote { margin: 0 0 10px; }
-    .md h1, .md h2, .md h3, .md h4 { font-size: 15px; margin: 14px 0 6px; }
-    .md ul, .md ol { padding-left: 22px; }
-    .md code { padding: 1px 4px; border: 1px solid var(--bd); border-radius: 4px; }
-    .md pre { padding: 10px 12px; border-radius: 8px; background: var(--card); overflow-x: auto; }
-    .md pre code { padding: 0; border: 0; }
+    .md p, .md ul, .md ol, .md pre, .md table, .md blockquote { margin: 0 0 16px; }
+    .md li + li, .md li > ul, .md li > ol { margin-top: 6px; }
+    .md li > ul, .md li > ol { margin-bottom: 0; }
+    .md h1, .md h2, .md h3, .md h4 { font-size: 16px; margin: 22px 0 8px; }
+    .md ul, .md ol { padding-left: 26px; }
+    .md code { padding: 2px 5px; border-radius: 5px; background: var(--hover); font-size: 13px; }
+    .md pre { padding: 12px 14px; border-radius: 8px; background: var(--card); overflow-x: auto; line-height: 1.5; }
+    .md pre code { padding: 0; background: none; }
     .md table { border-collapse: collapse; }
     .md th, .md td { border: 1px solid var(--bd); padding: 4px 8px; text-align: left; }
     .md blockquote { padding-left: 10px; border-left: 3px solid var(--bd); color: var(--muted); }
