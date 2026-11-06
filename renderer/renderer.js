@@ -10,12 +10,38 @@ function addLine(agent, cls, text) {
   if (state.active === agent.id) appendLineEl({ cls, text });
 }
 
-function appendLineEl({ cls, text }) {
-  const d = document.createElement('div');
-  d.className = 'msg ' + cls;
-  d.textContent = text;
-  logEl.appendChild(d);
+function lineEl(line) {
+  if (!line.lines) return el('div', 'msg ' + line.cls, line.text);
+  const d = el('details', 'msg fold');
+  d.appendChild(el('summary', null, line.text));
+  for (const l of line.lines) d.appendChild(lineEl(l));
+  return d;
+}
+
+function appendLineEl(line) {
+  logEl.appendChild(lineEl(line));
   logEl.scrollTop = logEl.scrollHeight;
+}
+
+function renderLog(agent) {
+  logEl.innerHTML = '';
+  agent.lines.forEach(appendLineEl);
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+// Once a turn ends, fold its tool calls and in-between messages; the final answer stays visible.
+function foldTurn(agent) {
+  const L = agent.lines;
+  const start = L.findLastIndex((l) => l.cls === 'you') + 1;
+  const last = L.findLastIndex((l) => l.cls === 'assistant');
+  const end = last >= start ? last : L.length;
+  const inner = L.slice(start, end);
+  const tools = inner.filter((l) => l.cls === 'tool').length;
+  if (!tools) return;
+  const msgs = inner.filter((l) => l.cls === 'assistant').length;
+  L.splice(start, inner.length, { cls: 'fold', text: plural(tools, 'tool call') + (msgs ? ', ' + plural(msgs, 'message') : ''), lines: inner });
+  if (state.active === agent.id) renderLog(agent);
 }
 
 function el(tag, cls, text) {
@@ -102,8 +128,7 @@ async function select(id) {
   state.active = id;
   showView('chat');
   setTitle(a);
-  logEl.innerHTML = '';
-  a.lines.forEach(appendLineEl);
+  renderLog(a);
   syncGo();
   input.focus();
 }
@@ -119,6 +144,7 @@ function handleEvent(agent, evt) {
         addLine(agent, 'tool', `🔧 ${block.name} ${JSON.stringify(block.input).slice(0, 200)}`);
     }
   } else if (evt.type === 'result') {
+    foldTurn(agent);
     const cost = evt.total_cost_usd != null ? ` · $${evt.total_cost_usd.toFixed(4)}` : '';
     addLine(agent, 'meta', `done${cost}`);
     for (const d of evt.permission_denials ?? [])
