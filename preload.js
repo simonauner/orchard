@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('agents', {
   status: () => ipcRenderer.invoke('settings:status'),
   browseClaude: () => ipcRenderer.invoke('settings:browseClaude'),
   setClaudePath: (file) => ipcRenderer.invoke('settings:setClaudePath', file),
+  list: () => ipcRenderer.invoke('agent:list'),
+  history: (id) => ipcRenderer.invoke('agent:history', id),
   create: (opts) => ipcRenderer.invoke('agent:create', opts),
   remove: (id) => ipcRenderer.invoke('agent:remove', id),
   send: (id, text) => ipcRenderer.invoke('agent:send', id, text),

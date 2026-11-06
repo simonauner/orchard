@@ -92,9 +92,14 @@ function setTitle(a) {
   $('agentModel').textContent = `${label('model', a.model)} · ${label('effort', a.effort)}`;
 }
 
-function select(id) {
-  state.active = id;
+async function select(id) {
   const a = state.agents.get(id);
+  if (!a.lines) {
+    // Restored after a restart: replay the saved transcript once.
+    a.lines = [];
+    for (const evt of await window.agents.history(id)) handleEvent(a, evt);
+  }
+  state.active = id;
   showView('chat');
   setTitle(a);
   logEl.innerHTML = '';
@@ -105,7 +110,9 @@ function select(id) {
 
 // Turn one stream-json event into readable lines.
 function handleEvent(agent, evt) {
-  if (evt.type === 'assistant') {
+  if (evt.type === 'you') {
+    addLine(agent, 'you', '› ' + evt.text); // only in saved history; live messages are added on send
+  } else if (evt.type === 'assistant') {
     for (const block of evt.message?.content ?? []) {
       if (block.type === 'text') addLine(agent, 'assistant', block.text);
       else if (block.type === 'tool_use')
@@ -238,12 +245,12 @@ $('form').onsubmit = async (e) => {
   syncGo();
   addLine(agent, 'you', '› ' + text);
   const ok = await window.agents.send(agent.id, text);
-  if (!ok) addLine(agent, 'meta', 'The agent is no longer running.');
+  if (!ok) addLine(agent, 'meta', 'Could not start the agent.');
 };
 
 window.agents.onEvent((id, evt) => {
   const a = state.agents.get(id);
-  if (a) handleEvent(a, evt);
+  if (a?.lines) handleEvent(a, evt); // not loaded yet: the history will include it
 });
 window.agents.onInfo((info) => {
   const a = state.agents.get(info.id);
@@ -257,7 +264,8 @@ window.agents.onStatus((id, status) => {
   if (a) { a.status = status; renderList(); }
 });
 
-window.agents.workspaces().then((ws) => {
+Promise.all([window.agents.workspaces(), window.agents.list()]).then(([ws, list]) => {
   state.workspaces = ws;
+  for (const info of list) state.agents.set(info.id, { ...info, lines: null }); // history loads on select
   showCreate();
 });
