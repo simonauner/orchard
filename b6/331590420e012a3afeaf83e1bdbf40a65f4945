@@ -1,0 +1,19 @@
+package.json
+  s_d10dba65f4b9a9::t_639a55a0d729f7 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b6331590420e012a3afeaf83e1bdbf40a65f4945",
+  "prompts": {},
+  "sessions": {
+    "s_d10dba65f4b9a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "afc03afc-e35b-4df3-8397-76c7e7d4a59f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
