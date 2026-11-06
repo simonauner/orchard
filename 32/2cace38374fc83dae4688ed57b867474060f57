@@ -1,0 +1,21 @@
+assets/icon.svg
+  s_3a577d630f321b::t_324b78dcc069a8 1-19
+main.js
+  s_3a577d630f321b::t_47d17b8bc378cc 45,360-361
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "322cace38374fc83dae4688ed57b867474060f57",
+  "prompts": {},
+  "sessions": {
+    "s_3a577d630f321b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29d3cab6-acd0-48eb-92ad-138b14e6a525",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
