@@ -54,7 +54,7 @@ function assistantEl(text) {
 function lineEl(line) {
   if (line.cls === 'assistant') return assistantEl(line.text);
   if (!line.lines) return el('div', 'msg ' + line.cls, line.text);
-  const d = el('details', 'msg fold');
+  const d = el('details', 'msg fold' + (line.live ? ' live' : ''));
   d.appendChild(el('summary', null, line.text));
   for (const l of line.lines) d.appendChild(lineEl(l));
   return d;
@@ -83,17 +83,34 @@ function renderOut(agent) {
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-// Once a turn ends, fold its tool calls and in-between messages; the final answer stays visible.
-function foldTurn(agent) {
+// While a turn runs, its tool calls and messages go into one fold whose summary shows the latest line.
+function addTurnLine(agent, cls, text) {
   const L = agent.lines;
-  const start = L.findLastIndex((l) => l.cls === 'you') + 1;
-  const last = L.findLastIndex((l) => l.cls === 'assistant');
-  const end = last >= start ? last : L.length;
-  const inner = L.slice(start, end);
-  const tools = inner.filter((l) => l.cls === 'tool').length;
-  if (!tools) return;
-  const msgs = inner.filter((l) => l.cls === 'assistant').length;
-  L.splice(start, inner.length, { cls: 'fold', text: plural(tools, 'tool call') + (msgs ? ', ' + plural(msgs, 'message') : ''), lines: inner });
+  let fold = L.at(-1);
+  if (!fold?.live) L.push(fold = { cls: 'fold', live: true, lines: [] });
+  fold.lines.push({ cls, text });
+  fold.text = text.split('\n')[0];
+  if (state.active !== agent.id) return;
+  const old = logEl.lastElementChild;
+  if (old?.classList.contains('live')) {
+    const d = lineEl(fold);
+    d.open = old.open;
+    old.replaceWith(d);
+    logEl.scrollTop = logEl.scrollHeight;
+  } else appendLineEl(fold);
+}
+
+// Once a turn ends, settle its fold: the final answer moves out, and a fold without tool calls opens up.
+function foldTurn(agent) {
+  agent.lines = agent.lines.flatMap((l) => {
+    if (!l.live) return [l];
+    const inner = l.lines;
+    const answer = inner.at(-1)?.cls === 'assistant' ? [inner.pop()] : [];
+    const tools = inner.filter((x) => x.cls === 'tool').length;
+    if (!tools) return [...inner, ...answer];
+    const msgs = inner.length - tools;
+    return [{ cls: 'fold', text: plural(tools, 'tool call') + (msgs ? ', ' + plural(msgs, 'message') : ''), lines: inner }, ...answer];
+  });
   if (state.active === agent.id) renderLog(agent);
 }
 
@@ -417,9 +434,9 @@ function handleEvent(agent, evt) {
     addLine(agent, 'you', evt.text); // only in saved history; live messages are added on send
   } else if (evt.type === 'assistant') {
     for (const block of evt.message?.content ?? []) {
-      if (block.type === 'text') addLine(agent, 'assistant', block.text);
+      if (block.type === 'text') addTurnLine(agent, 'assistant', block.text);
       else if (block.type === 'tool_use')
-        addLine(agent, 'tool', `🔧 ${block.name} ${JSON.stringify(block.input).slice(0, 200)}`);
+        addTurnLine(agent, 'tool', `🔧 ${block.name} ${JSON.stringify(block.input).slice(0, 200)}`);
     }
   } else if (evt.type === 'result') {
     foldTurn(agent);
