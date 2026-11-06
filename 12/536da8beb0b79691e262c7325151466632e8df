@@ -1,0 +1,27 @@
+renderer/index.html
+  s_7fdc5bc02b04ba::t_6db35d03a14b9f 20-27
+main.js
+  s_7fdc5bc02b04ba::t_e6947c5e5e06e6 32-33,88-105,311
+preload.js
+  s_7fdc5bc02b04ba::t_e6947c5e5e06e6 7-8
+renderer/renderer.js
+  s_7fdc5bc02b04ba::t_6db35d03a14b9f 4,479
+  s_7fdc5bc02b04ba::t_5f31eb9a80f200 155-190
+  s_7fdc5bc02b04ba::t_7f1cfb724aed2b 107-138,142-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "12536da8beb0b79691e262c7325151466632e8df",
+  "prompts": {},
+  "sessions": {
+    "s_7fdc5bc02b04ba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46ead02d-ca91-4bfe-94ad-9353c17fb535",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
