@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron');
 const path = require('node:path');
-const { Agent } = require('./agent');
+const { Agent, createWorktree, removeWorktree } = require('./agent');
 
 let win = null;
 const agents = new Map();
@@ -25,26 +25,48 @@ function toUi(...args) {
 }
 
 function publicInfo(a) {
-  return { id: a.id, cwd: a.cwd, status: a.status, name: path.basename(a.cwd) };
+  return { id: a.id, cwd: a.cwd, status: a.status, name: a.task, branch: a.worktree.branch };
 }
 
-ipcMain.handle('agent:create', async () => {
-  const res = await dialog.showOpenDialog(win, { properties: ['openDirectory'] });
+ipcMain.handle('agent:create', async (_e, task) => {
+  const res = await dialog.showOpenDialog(win, { title: 'Välj git-repo', properties: ['openDirectory'] });
   if (res.canceled || !res.filePaths[0]) return null;
 
-  const agent = new Agent({ id: nextId++, cwd: res.filePaths[0] });
+  let worktree;
+  try {
+    worktree = await createWorktree(res.filePaths[0], String(task ?? ''));
+  } catch (e) {
+    return { error: e.message };
+  }
+
+  const agent = new Agent({ id: nextId++, cwd: worktree.dir });
+  agent.task = String(task).trim();
+  agent.worktree = worktree;
   agents.set(agent.id, agent);
 
   agent.on('event', (event) => toUi('agent:event', agent.id, event));
   agent.on('status', (status) => {
     toUi('agent:status', agent.id, status);
     if (status === 'done' && win && !win.isDestroyed() && !win.isFocused()) {
-      new Notification({ title: 'Agent klar', body: path.basename(agent.cwd) }).show();
+      new Notification({ title: 'Agent klar', body: agent.task }).show();
     }
   });
 
   agent.start();
   return publicInfo(agent);
+});
+
+ipcMain.handle('agent:remove', async (_e, id) => {
+  const agent = agents.get(id);
+  if (!agent) return { ok: true };
+  await agent.stop();
+  try {
+    await removeWorktree(agent.worktree);
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+  agents.delete(id);
+  return { ok: true };
 });
 
 ipcMain.handle('agent:send', (_e, id, text) => agents.get(id)?.send(text) ?? false);

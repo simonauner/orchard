@@ -22,9 +22,10 @@ function renderList() {
   for (const a of state.agents.values()) {
     const el = document.createElement('div');
     el.className = 'item' + (a.id === state.active ? ' active' : '');
-    el.innerHTML = `<span class="dot ${a.status}"></span><b></b><small></small>`;
+    el.innerHTML = `<button class="rm" title="Ta bort agent och worktree" aria-label="Ta bort">×</button><span class="dot ${a.status}"></span><b></b><small></small>`;
     el.querySelector('b').textContent = a.name;
-    el.querySelector('small').textContent = a.status;
+    el.querySelector('small').textContent = `${a.status} · ${a.branch}`;
+    el.querySelector('.rm').onclick = (e) => { e.stopPropagation(); remove(a); };
     el.onclick = () => select(a.id);
     listEl.appendChild(el);
   }
@@ -58,12 +59,29 @@ function handleEvent(agent, evt) {
   }
 }
 
-$('new').onclick = async () => {
-  const info = await window.agents.create();
+$('newForm').onsubmit = async (e) => {
+  e.preventDefault();
+  $('err').textContent = '';
+  const info = await window.agents.create($('task').value);
   if (!info) return;
+  if (info.error) { $('err').textContent = info.error; return; }
+  $('task').value = '';
   state.agents.set(info.id, { ...info, lines: [] });
   select(info.id);
 };
+
+async function remove(agent) {
+  if (!confirm(`Ta bort agenten "${agent.name}" och dess worktree? Grenen ${agent.branch} behålls.`)) return;
+  const res = await window.agents.remove(agent.id);
+  if (!res.ok) { addLine(agent, 'meta', `Kunde inte ta bort worktreen: ${res.error}`); return; }
+  state.agents.delete(agent.id);
+  if (state.active === agent.id) {
+    state.active = null;
+    logEl.innerHTML = '';
+    input.disabled = go.disabled = true;
+  }
+  renderList();
+}
 
 form.onsubmit = async (e) => {
   e.preventDefault();

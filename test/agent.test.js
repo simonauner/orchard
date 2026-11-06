@@ -43,3 +43,11 @@ agent.on('status', (s) => {
   });
   agent.stop();
 });
+
+// stop() resolves once the process has exited, and is safe to call again.
+const b = new Agent({ id: 2, cwd: process.cwd(), command: process.execPath, args: [path.join(__dirname, 'fake-claude.js')] });
+b.start();
+b.stop().then(() => {
+  assert.notStrictEqual(b.proc.exitCode ?? b.proc.signalCode, null);
+  return b.stop();
+}).then(() => console.log('OK: stop resolves on exit'));
