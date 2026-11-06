@@ -3,6 +3,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Agent, checkExecutable, claudeStatus, createWorktree, removeWorktree, repoRoot } = require('./agent');
 
+// The native Claude Code installer puts `claude` in ~/.local/bin, which shells and GUI launches often lack.
+const localBin = path.join(require('node:os').homedir(), '.local', 'bin');
+if (!process.env.PATH.split(path.delimiter).includes(localBin)) process.env.PATH += path.delimiter + localBin;
+
 let win = null;
 const agents = new Map();
 let nextId = 1;
