@@ -1,10 +1,26 @@
 const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron');
+const fs = require('node:fs');
 const path = require('node:path');
-const { Agent, createWorktree, removeWorktree } = require('./agent');
+const { Agent, createWorktree, removeWorktree, repoRoot } = require('./agent');
 
 let win = null;
 const agents = new Map();
 let nextId = 1;
+
+// Workspaces = repo roots the user has added, kept across restarts.
+const workspacesFile = () => path.join(app.getPath('userData'), 'workspaces.json');
+let workspaces = [];
+function loadWorkspaces() {
+  try {
+    workspaces = JSON.parse(fs.readFileSync(workspacesFile(), 'utf8')).filter((w) => typeof w === 'string');
+  } catch {
+    workspaces = []; // first run or unreadable file
+  }
+}
+function saveWorkspaces() {
+  fs.mkdirSync(path.dirname(workspacesFile()), { recursive: true });
+  fs.writeFileSync(workspacesFile(), JSON.stringify(workspaces, null, 2));
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -25,23 +41,41 @@ function toUi(...args) {
 }
 
 function publicInfo(a) {
-  return { id: a.id, cwd: a.cwd, status: a.status, name: a.task, branch: a.worktree.branch };
+  return { id: a.id, status: a.status, name: a.task, branch: a.worktree.branch, workspace: a.worktree.root };
 }
 
-ipcMain.handle('agent:create', async (_e, task) => {
-  const res = await dialog.showOpenDialog(win, { title: 'Choose a git repo', properties: ['openDirectory'] });
-  if (res.canceled || !res.filePaths[0]) return null;
+ipcMain.handle('workspaces:list', () => workspaces);
 
-  let worktree;
+ipcMain.handle('workspaces:add', async () => {
+  const res = await dialog.showOpenDialog(win, { title: 'Add a git repo as workspace', properties: ['openDirectory'] });
+  if (res.canceled || !res.filePaths[0]) return null;
   try {
-    worktree = await createWorktree(res.filePaths[0], String(task ?? ''));
+    const root = await repoRoot(res.filePaths[0]);
+    if (!workspaces.includes(root)) {
+      workspaces.push(root);
+      saveWorkspaces();
+    }
+    return { root, workspaces };
   } catch (e) {
     return { error: e.message };
   }
+});
 
-  const agent = new Agent({ id: nextId++, cwd: worktree.dir });
-  agent.task = String(task).trim();
-  agent.worktree = worktree;
+ipcMain.handle('agent:create', async (_e, { workspace, prompt, model, effort } = {}) => {
+  prompt = String(prompt ?? '').trim();
+  if (!workspaces.includes(workspace)) return { error: 'Pick a workspace first.' };
+  if (!prompt) return { error: 'Describe what you want to work on.' };
+
+  let agent;
+  try {
+    // Validates model/effort before anything is created on disk.
+    agent = new Agent({ id: nextId++, cwd: workspace, model: model || null, effort: effort || null });
+    agent.worktree = await createWorktree(workspace, prompt.split('\n')[0]);
+  } catch (e) {
+    return { error: e.message };
+  }
+  agent.cwd = agent.worktree.dir;
+  agent.task = prompt.split('\n')[0].slice(0, 60);
   agents.set(agent.id, agent);
 
   agent.on('event', (event) => toUi('agent:event', agent.id, event));
@@ -53,6 +87,7 @@ ipcMain.handle('agent:create', async (_e, task) => {
   });
 
   agent.start();
+  agent.send(prompt);
   return publicInfo(agent);
 });
 
@@ -75,4 +110,7 @@ ipcMain.handle('agent:stop', (_e, id) => agents.get(id)?.stop());
 // Never leave orphaned claude processes behind.
 app.on('before-quit', () => agents.forEach((a) => a.stop()));
 app.on('window-all-closed', () => app.quit());
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  loadWorkspaces();
+  createWindow();
+});

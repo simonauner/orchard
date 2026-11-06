@@ -5,50 +5,93 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
   <title>Agent Workspace</title>
   <style>
-    :root { color-scheme: light dark; --bd: #8884; --muted: #888; }
+    :root { color-scheme: light dark; --bd: #8884; --muted: #888; --hover: #8882; --card: #8881; }
     * { box-sizing: border-box; }
     body { margin: 0; height: 100vh; display: flex; font: 14px system-ui, sans-serif; }
-    #side { width: 240px; border-right: 1px solid var(--bd); display: flex; flex-direction: column; }
-    #side header { padding: 10px; border-bottom: 1px solid var(--bd); }
-    #newForm { padding: 0; border: 0; flex-direction: column; }
-    #newForm button { padding: 8px; cursor: pointer; }
-    .item .rm { float: right; cursor: pointer; background: none; border: 0; color: inherit; }
+    button, select, textarea, input { font: inherit; color: inherit; }
+    #side { width: 260px; border-right: 1px solid var(--bd); display: flex; flex-direction: column; }
+    .nav { display: block; width: 100%; text-align: left; padding: 10px 12px; background: none; border: 0; cursor: pointer; }
+    .nav:hover, .nav.active { background: var(--hover); }
+    .section { display: flex; align-items: center; justify-content: space-between; padding: 14px 12px 4px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--bd); }
+    .icon { background: none; border: 0; cursor: pointer; color: var(--muted); font-size: 16px; padding: 0 4px; }
+    .icon:hover { color: inherit; }
     #list { flex: 1; overflow: auto; }
-    .item { padding: 10px; cursor: pointer; border-bottom: 1px solid var(--bd); }
-    .item.active { background: #8882; }
-    .item small { display: block; color: var(--muted); margin-top: 2px; }
-    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: #999; }
+    .ws { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-weight: 600; }
+    .item { display: flex; align-items: center; gap: 6px; padding: 6px 12px 6px 24px; cursor: pointer; }
+    .item:hover, .item.active { background: var(--hover); }
+    .item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item .rm { visibility: hidden; }
+    .item:hover .rm, .item.active .rm { visibility: visible; }
+    .hint { padding: 6px 12px; color: var(--muted); font-size: 12px; }
+    .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #999; }
     .dot.working { background: #e0a800; } .dot.done { background: #2e9e4f; }
     .dot.error, .dot.stopped { background: #d33; }
-    #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    #createView { margin: 12vh auto 0; width: min(600px, 100% - 32px); }
+    .card { border: 1px solid var(--bd); border-radius: 10px; background: var(--card); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .card textarea { width: 100%; min-height: 120px; resize: vertical; border: 0; background: none; outline: none; }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .row .spacer { flex: 1; }
+    select { background: none; border: 0; cursor: pointer; padding: 4px; }
+    #createBtn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--bd); cursor: pointer; }
+    #err { color: #d33; margin-top: 8px; font-size: 13px; }
+    #chatView { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    #chatView[hidden], #createView[hidden] { display: none; }
+    #title { padding: 10px 16px; border-bottom: 1px solid var(--bd); }
+    #title small { color: var(--muted); margin-left: 8px; }
     #log { flex: 1; overflow: auto; padding: 16px; }
     .msg { margin: 0 0 12px; white-space: pre-wrap; line-height: 1.45; }
     .you { color: var(--muted); }
     .tool { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
     .meta { color: var(--muted); font-size: 12px; }
-    form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--bd); }
-    input { flex: 1; padding: 8px; }
-    #empty { margin: auto; color: var(--muted); }
+    #form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--bd); }
+    #form input { flex: 1; padding: 8px; }
   </style>
 </head>
 <body>
-  <div id="side">
-    <header>
-      <form id="newForm">
-        <input id="task" placeholder="Task name" aria-label="Task name" autocomplete="off" required />
-        <button>+ New agent</button>
-      </form>
-      <div id="err" class="meta" role="alert"></div>
-    </header>
+  <nav id="side">
+    <button class="nav" id="navCreate">+ Create</button>
+    <div class="section"><span>Workspaces</span><button class="icon" id="addWs" title="Add workspace" aria-label="Add workspace">+</button></div>
     <div id="list"></div>
-  </div>
-  <div id="main">
-    <div id="log"><div id="empty">Enter a task name and pick a git repo with "+ New agent".</div></div>
-    <form id="form">
-      <input id="text" placeholder="Message the agent…" autocomplete="off" disabled />
-      <button disabled id="go">Send</button>
-    </form>
-  </div>
+  </nav>
+  <main>
+    <section id="createView">
+      <form class="card" id="createForm">
+        <div class="row">
+          <select id="ws" aria-label="Workspace"></select>
+        </div>
+        <textarea id="prompt" placeholder="What do you want to work on?" aria-label="What do you want to work on?"></textarea>
+        <div class="row">
+          <select id="model" aria-label="Model">
+            <option value="">Default model</option>
+            <option value="fable">Fable</option>
+            <option value="opus">Opus</option>
+            <option value="sonnet">Sonnet</option>
+            <option value="haiku">Haiku</option>
+          </select>
+          <select id="effort" aria-label="Effort">
+            <option value="">Default effort</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="xhigh">Extra high</option>
+            <option value="max">Max</option>
+          </select>
+          <span class="spacer"></span>
+          <button id="createBtn">Create ↵</button>
+        </div>
+      </form>
+      <div id="err" role="alert"></div>
+    </section>
+    <section id="chatView" hidden>
+      <div id="title"><b></b><small></small></div>
+      <div id="log"></div>
+      <form id="form">
+        <input id="text" placeholder="Message the agent…" aria-label="Message the agent" autocomplete="off" />
+        <button id="go">Send</button>
+      </form>
+    </section>
+  </main>
   <script src="renderer.js"></script>
 </body>
 </html>

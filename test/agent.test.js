@@ -51,3 +51,11 @@ b.stop().then(() => {
   assert.notStrictEqual(b.proc.exitCode ?? b.proc.signalCode, null);
   return b.stop();
 }).then(() => console.log('OK: stop resolves on exit'));
+
+// Model and effort are allowlisted because they become CLI arguments.
+const withOpts = new Agent({ id: 3, cwd: '.', model: 'opus', effort: 'high' });
+assert.deepStrictEqual(withOpts.args.slice(-4), ['--model', 'opus', '--effort', 'high']);
+assert.ok(!new Agent({ id: 4, cwd: '.' }).args.includes('--model'));
+assert.throws(() => new Agent({ id: 5, cwd: '.', model: '--dangerously-skip-permissions' }), /Unknown model/);
+assert.throws(() => new Agent({ id: 6, cwd: '.', effort: 'ultra' }), /Unknown effort/);
+console.log('OK: model/effort allowlist');

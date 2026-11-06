@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { createWorktree, removeWorktree, slugify } = require('../agent');
+const { createWorktree, removeWorktree, repoRoot, slugify } = require('../agent');
 
 process.env.LC_ALL = 'C'; // assertions match git's English messages
 const git = (cwd, ...a) => execFileSync('git', ['-C', cwd, ...a], { encoding: 'utf8' }).trim();
@@ -18,7 +18,7 @@ const git = (cwd, ...a) => execFileSync('git', ['-C', cwd, ...a], { encoding: 'u
 
   try {
     assert.strictEqual(slugify('  Fix Åland bug!! '), 'fix-aland-bug');
-    await assert.rejects(createWorktree(repo, '!!!'), /task name/);
+    await assert.rejects(createWorktree(repo, '!!!'), /letters or digits/);
     await assert.rejects(createWorktree(tmp, 'x'), /not a git repository/);
 
     // A subfolder of the repo resolves to the repo root.
@@ -31,8 +31,18 @@ const git = (cwd, ...a) => execFileSync('git', ['-C', cwd, ...a], { encoding: 'u
     });
     assert.strictEqual(git(wt.dir, 'branch', '--show-current'), 'agent/fixa-login');
 
-    // Same task twice: git refuses, the first worktree is untouched.
-    await assert.rejects(createWorktree(repo, 'fixa login'), /already exists/);
+    assert.strictEqual(await repoRoot(path.join(repo, 'sub')), repo);
+
+    // Same task again gets a numbered slug instead of failing.
+    const wt2 = await createWorktree(repo, 'fixa login');
+    assert.strictEqual(wt2.branch, 'agent/fixa-login-2');
+    await removeWorktree(wt2);
+
+    // Long prompts are cut to 40 chars without a trailing dash.
+    assert.strictEqual((await createWorktree(repo, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b')).branch, 'agent/' + 'a'.repeat(39));
+    const long = await createWorktree(repo, 'Refactor the payment service so that retries are idempotent');
+    assert.strictEqual(long.branch, 'agent/refactor-the-payment-service-so-that-ret');
+    await removeWorktree(long);
 
     // Uncommitted work blocks removal so nothing is lost.
     fs.writeFileSync(path.join(wt.dir, 'wip.txt'), 'x');

@@ -1,7 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('agents', {
-  create: (task) => ipcRenderer.invoke('agent:create', task),
+  workspaces: () => ipcRenderer.invoke('workspaces:list'),
+  addWorkspace: () => ipcRenderer.invoke('workspaces:add'),
+  create: (opts) => ipcRenderer.invoke('agent:create', opts),
   remove: (id) => ipcRenderer.invoke('agent:remove', id),
   send: (id, text) => ipcRenderer.invoke('agent:send', id, text),
   stop: (id) => ipcRenderer.invoke('agent:stop', id),

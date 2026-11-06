@@ -11,23 +11,30 @@ npm start
 
 Requires `claude` on your PATH and a logged-in session (run `claude` once in a terminal).
 
-## Agents and worktrees
+## Workspaces, agents and worktrees
 
-Enter a task name, click "+ New agent" and pick a git repo. The app runs
-`git worktree add -b agent/<task> <repo>-worktrees/<task>` and starts claude there.
+A workspace is a git repo on your machine. Add one with "+" next to "Workspaces" in the sidebar;
+the list is saved in `workspaces.json` in the app's user data folder.
+
+"+ Create" (or "+" on a workspace) opens the create view: pick a workspace, model and effort,
+describe the task and press Enter (Shift+Enter for a new line). The app runs
+`git worktree add -b agent/<slug> <repo>-worktrees/<slug>`, where the slug comes from the first
+line of the prompt (a taken slug gets `-2`, `-3`, …), starts claude there and sends the prompt as
+the first message. Model and effort are passed as `--model`/`--effort`; "Default" leaves them out.
+
 Claude runs with `--permission-mode acceptEdits`: file edits inside the worktree are approved
-automatically, other tools (e.g. Bash) are denied and shown as "⛔ denied" in the chat.
+automatically, tools that need approval are denied and shown as "⛔ denied" in the chat.
 
-"×" stops the agent and runs `git worktree remove` (without `--force`). If the worktree has
-uncommitted changes, git refuses and the worktree stays. The `agent/<task>` branch is always kept.
-Worktrees are not removed when the app quits.
+"×" on an agent stops it and runs `git worktree remove` (without `--force`). If the worktree has
+uncommitted changes, git refuses and the worktree stays. The `agent/<slug>` branch is always kept.
+Worktrees are not removed when the app quits, and agents are not restored on the next start.
 
 ## Structure
 
-- `agent.js` – `createWorktree`/`removeWorktree` and an `Agent` = one `claude -p --input-format stream-json --output-format stream-json --verbose` process. Reads JSON lines from stdout, writes JSON lines to stdin. No Electron dependency, testable on its own (`npm test`).
-- `main.js` – Electron main process. Keeps the list of agents, starts them, forwards events to the UI over IPC, shows a desktop notification when an agent finishes and stops all processes on quit.
+- `agent.js` – `createWorktree`/`removeWorktree`/`repoRoot`, the model/effort allowlists and an `Agent` = one `claude -p --input-format stream-json --output-format stream-json --verbose` process. Reads JSON lines from stdout, writes JSON lines to stdin. No Electron dependency, testable on its own (`npm test`).
+- `main.js` – Electron main process. Keeps the workspace list and the agents, starts them, forwards events to the UI over IPC, shows a desktop notification when an agent finishes and stops all processes on quit.
 - `preload.js` – thin bridge (`window.agents`) between the UI and the main process.
-- `renderer/` – sidebar with status + chat view.
+- `renderer/` – sidebar (workspaces with their agents), create view and chat view.
 
 ## Next steps
 
