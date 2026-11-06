@@ -1,13 +1,13 @@
-// agents: { id, name, status, branch, workspace, lines: [{cls, text}] }
-const state = { workspaces: [], agents: new Map(), active: null, view: 'create' };
+// agents: { id, name, status, branch, workspace, runs, logs: { chat|setup|run: [{cls, text}] }, running: {setup, run} }
+const state = { workspaces: [], agents: new Map(), active: null, view: 'create', tab: 'chat' };
 
 const $ = (id) => document.getElementById(id);
 const listEl = $('list'), logEl = $('log'), input = $('text');
 const basename = (p) => p.split('/').filter(Boolean).pop();
 
-function addLine(agent, cls, text) {
-  agent.lines.push({ cls, text });
-  if (state.active === agent.id) appendLineEl({ cls, text });
+function addLine(agent, cls, text, tab = 'chat') {
+  agent.logs[tab].push({ cls, text });
+  if (state.active === agent.id && state.tab === tab) appendLineEl({ cls, text });
 }
 
 function appendLineEl({ cls, text }) {
@@ -88,10 +88,42 @@ function select(id) {
   showView('chat');
   $('title').querySelector('b').textContent = a.name;
   $('title').querySelector('small').textContent = `${basename(a.workspace)} · ${a.branch}`;
-  logEl.innerHTML = '';
-  a.lines.forEach(appendLineEl);
-  input.focus();
+  const sel = $('runSel');
+  sel.innerHTML = '';
+  for (const r of a.runs) {
+    const o = el('option', null, r.name);
+    o.value = r.name;
+    sel.appendChild(o);
+  }
+  sel.value = a.runChoice || a.runs.find((r) => r.default)?.name || a.runs[0]?.name || '';
+  showTab(state.tab);
 }
+
+function showTab(tab) {
+  state.tab = tab;
+  const a = state.agents.get(state.active);
+  for (const b of document.querySelectorAll('.tabBtn')) {
+    b.classList.toggle('active', b.dataset.tab === tab);
+    b.classList.toggle('running', !!a.running[b.dataset.tab]);
+  }
+  $('form').hidden = tab !== 'chat';
+  $('runSel').hidden = $('runBtn').hidden = !a.runs.length;
+  $('runBtn').textContent = a.running.run ? '■ Stop' : '▶ Run';
+  logEl.innerHTML = '';
+  a.logs[tab].forEach(appendLineEl);
+  if (!a.logs[tab].length && tab !== 'chat')
+    appendLineEl({ cls: 'meta', text: a.configFile ? `Nothing yet. Scripts come from ${a.configFile}.`
+      : 'No scripts. Add .orchard/settings.toml (or .conductor/settings.toml) to the repo.' });
+  if (tab === 'chat') input.focus();
+}
+
+for (const b of document.querySelectorAll('.tabBtn')) b.onclick = () => showTab(b.dataset.tab);
+$('runSel').onchange = () => { state.agents.get(state.active).runChoice = $('runSel').value; };
+$('runBtn').onclick = () => {
+  const a = state.agents.get(state.active);
+  if (a.running.run) window.agents.runStop(a.id);
+  else { window.agents.run(a.id, $('runSel').value); showTab('run'); }
+};
 
 // Turn one stream-json event into readable lines.
 function handleEvent(agent, evt) {
@@ -193,7 +225,8 @@ $('createForm').onsubmit = async (e) => {
     const info = await window.agents.create({ workspace: $('ws').value, prompt, model: $('model').value, effort: $('effort').value });
     if (info.error) { $('err').textContent = info.error; return; }
     $('prompt').value = '';
-    const agent = { ...info, lines: [] };
+    const agent = { ...info, logs: { chat: [], setup: [], run: [] }, running: {} };
+    state.tab = 'chat';
     state.agents.set(info.id, agent);
     addLine(agent, 'you', '› ' + prompt);
     select(info.id);
@@ -225,6 +258,19 @@ $('form').onsubmit = async (e) => {
 window.agents.onEvent((id, evt) => {
   const a = state.agents.get(id);
   if (a) handleEvent(a, evt);
+});
+window.agents.onScript((id, kind, line) => {
+  const a = state.agents.get(id);
+  if (a) addLine(a, 'out', line, kind);
+});
+window.agents.onScriptState((id, kind, running) => {
+  const a = state.agents.get(id);
+  if (!a) return;
+  a.running[kind] = running;
+  if (state.active === id && state.view === 'chat') {
+    document.querySelector(`.tabBtn[data-tab="${kind}"]`).classList.toggle('running', running);
+    $('runBtn').textContent = a.running.run ? '■ Stop' : '▶ Run';
+  }
 });
 window.agents.onStatus((id, status) => {
   const a = state.agents.get(id);

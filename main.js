@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron'
 const fs = require('node:fs');
 const path = require('node:path');
 const { Agent, checkExecutable, claudeStatus, createWorktree, removeWorktree, repoRoot } = require('./agent');
+const { loadConfig, scriptEnv, runScript } = require('./scripts');
 
 let win = null;
 const agents = new Map();
@@ -48,8 +49,30 @@ function toUi(...args) {
 }
 
 function publicInfo(a) {
-  return { id: a.id, status: a.status, name: a.task, branch: a.worktree.branch, workspace: a.worktree.root };
+  return {
+    id: a.id, status: a.status, name: a.task, branch: a.worktree.branch, workspace: a.worktree.root,
+    configFile: a.config?.file || null, runs: a.config?.run.map((r) => ({ name: r.name, default: r.default })) || [],
+  };
 }
+
+// kind: 'setup' | 'run'. Lines and state go to the agent's Setup/Run tabs.
+function startScript(agent, kind, command) {
+  const say = (line) => toUi('agent:script', agent.id, kind, line);
+  say(`$ ${command}`);
+  const job = runScript(command, { cwd: agent.worktree.dir, env: scriptEnv({ ...agent.worktree, port: agent.port }), onLine: say });
+  agent.jobs[kind] = job;
+  toUi('agent:scriptState', agent.id, kind, true);
+  job.done.then((code) => {
+    say(code === 0 ? '✓ finished' : `✗ exited with ${code}`);
+    if (agent.jobs[kind] === job) {
+      agent.jobs[kind] = null;
+      toUi('agent:scriptState', agent.id, kind, false);
+    }
+  });
+  return job;
+}
+
+const stopJobs = (agent) => Promise.all(Object.values(agent.jobs).filter(Boolean).map((j) => j.kill()));
 
 ipcMain.handle('workspaces:list', () => workspaces);
 
@@ -104,6 +127,15 @@ ipcMain.handle('agent:create', async (_e, { workspace, prompt, model, effort } =
   }
   agent.cwd = agent.worktree.dir;
   agent.task = prompt.split('\n')[0].slice(0, 60);
+  // Ten ports per agent, like Conductor. shortcut: not checked for being free, probe if collisions show up.
+  agent.port = 41000 + (agent.id % 400) * 10;
+  agent.jobs = { setup: null, run: null };
+  let configError = null;
+  try {
+    agent.config = loadConfig(agent.worktree.dir);
+  } catch (e) {
+    configError = e.message;
+  }
   agents.set(agent.id, agent);
 
   agent.on('event', (event) => toUi('agent:event', agent.id, event));
@@ -116,13 +148,22 @@ ipcMain.handle('agent:create', async (_e, { workspace, prompt, model, effort } =
 
   agent.start();
   agent.send(prompt);
+  // Like Conductor, the agent starts right away while setup runs next to it.
+  setImmediate(() => {
+    if (configError) toUi('agent:script', agent.id, 'setup', configError);
+    else if (agent.config?.setup) startScript(agent, 'setup', agent.config.setup);
+  });
   return publicInfo(agent);
 });
 
 ipcMain.handle('agent:remove', async (_e, id) => {
   const agent = agents.get(id);
   if (!agent) return { ok: true };
-  await agent.stop();
+  await Promise.all([agent.stop(), stopJobs(agent)]);
+  if (agent.config?.archive) {
+    const code = await startScript(agent, 'setup', agent.config.archive).done;
+    if (code !== 0) return { ok: false, error: `The archive script exited with ${code}; see the Setup tab.` };
+  }
   try {
     await removeWorktree(agent.worktree);
   } catch (e) {
@@ -135,8 +176,19 @@ ipcMain.handle('agent:remove', async (_e, id) => {
 ipcMain.handle('agent:send', (_e, id, text) => agents.get(id)?.send(text) ?? false);
 ipcMain.handle('agent:stop', (_e, id) => agents.get(id)?.stop());
 
+// One run at a time per agent; starting another stops the current one first.
+ipcMain.handle('agent:run', async (_e, id, name) => {
+  const agent = agents.get(id);
+  const run = agent?.config?.run.find((r) => r.name === name);
+  if (!run) return false;
+  await agent.jobs.run?.kill();
+  startScript(agent, 'run', run.command);
+  return true;
+});
+ipcMain.handle('agent:runStop', (_e, id) => agents.get(id)?.jobs.run?.kill());
+
 // Never leave orphaned claude processes behind.
-app.on('before-quit', () => agents.forEach((a) => a.stop()));
+app.on('before-quit', () => agents.forEach((a) => { a.stop(); stopJobs(a); }));
 app.on('window-all-closed', () => app.quit());
 app.whenReady().then(() => {
   workspaces = [].concat(readJson('workspaces.json', [])).filter((w) => typeof w === 'string');

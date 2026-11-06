@@ -60,6 +60,12 @@
     .you { color: var(--muted); }
     .tool { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
     .meta { color: var(--muted); font-size: 12px; }
+    #tabs { padding: 0 16px; border-bottom: 1px solid var(--bd); }
+    .tabBtn { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 4px; cursor: pointer; color: var(--muted); }
+    .tabBtn.active { color: inherit; border-bottom-color: currentColor; }
+    .tabBtn.running::after { content: ' ●'; color: #2e9e4f; }
+    .out { margin: 0; white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 12px; }
+    #form[hidden], #runSel[hidden], #runBtn[hidden] { display: none; }
     #form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--bd); }
     #form input { flex: 1; padding: 8px; }
   </style>
@@ -124,6 +130,14 @@
     </section>
     <section id="chatView" hidden>
       <div id="title"><b></b><small></small></div>
+      <div id="tabs" class="row">
+        <button class="tabBtn" data-tab="chat">Chat</button>
+        <button class="tabBtn" data-tab="setup">Setup</button>
+        <button class="tabBtn" data-tab="run">Run</button>
+        <span class="spacer"></span>
+        <select id="runSel" aria-label="Run script"></select>
+        <button class="btn" id="runBtn">▶ Run</button>
+      </div>
       <div id="log"></div>
       <form id="form">
         <input id="text" placeholder="Message the agent…" aria-label="Message the agent" autocomplete="off" />
