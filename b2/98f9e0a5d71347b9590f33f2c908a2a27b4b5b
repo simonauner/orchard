@@ -1,0 +1,19 @@
+renderer/index.html
+  s_074470c859c599::t_324e2f72abdef6 62,94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b298f9e0a5d71347b9590f33f2c908a2a27b4b5b",
+  "prompts": {},
+  "sessions": {
+    "s_074470c859c599": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa54a11f-f805-45f5-afc3-b5b55b51be55",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
