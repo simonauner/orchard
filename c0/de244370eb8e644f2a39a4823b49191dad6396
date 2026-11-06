@@ -1,0 +1,44 @@
+main.js
+  s_22625ae54d164b::t_3c0e22deee6bf5 7,88-105,342-348
+  s_22625ae54d164b::t_7267c6d23f6069 107-110
+  s_22625ae54d164b::t_6e49eed7dd3d6d 106
+package.json
+  s_22625ae54d164b::t_06ae6d42206464 16-17,19
+  s_22625ae54d164b::t_14775ffbdf8acb 9
+preload.js
+  s_22625ae54d164b::t_3c0e22deee6bf5 24-28
+renderer/index.html
+  s_22625ae54d164b::t_60762a7f979aeb 7,58-59,211,218,224-225
+  s_a0a331a8da7276::t_3132ef3b32f150 13,49,51-54,134,201
+renderer/renderer.js
+  s_22625ae54d164b::t_60762a7f979aeb 3,19-20,285,298-301,304-339
+  s_22625ae54d164b::t_c6902ec434361e 340
+  s_a0a331a8da7276::t_be7837f11d5212 628
+  s_a0a331a8da7276::t_3132ef3b32f150 614-627,629-633
+package-lock.json
+  s_22625ae54d164b::t_a458a397c73d0e 10,12-13,15,122-136,626-641,949-958,1317-1329
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c0de244370eb8e644f2a39a4823b49191dad6396",
+  "prompts": {},
+  "sessions": {
+    "s_22625ae54d164b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3ec3c414-ae35-49c0-9055-fac706da97a1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    },
+    "s_a0a331a8da7276": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a9f1edb-7772-4e2f-acdb-d9fa578468e9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
