@@ -113,17 +113,32 @@ function showCreate(ws) {
   showView('create');
   $('err').textContent = '';
   renderWorkspaceSelect(ws || $('ws').value);
+  showDefaults();
   $('prompt').focus();
 }
+
+// Same labels as the create form's dropdowns; unknown values (e.g. a full model id) as they are.
+const optionText = (id, v) => [...$(id).options].find((o) => o.value === v)?.textContent ?? v;
+const defaultText = (id, v) => `Default ${id}` + (v ? ` (${optionText(id, v)})` : '');
+const choiceText = (id, v, def) => (v ? optionText(id, v) : defaultText(id, def));
+
+async function showDefaults() {
+  const ws = $('ws').value;
+  const d = await window.agents.defaults(ws);
+  if (ws !== $('ws').value) return; // the workspace changed while reading
+  $('model').options[0].textContent = defaultText('model', d.model);
+  $('effort').options[0].textContent = defaultText('effort', d.effort);
+}
+$('ws').onchange = showDefaults;
 
 const branchLabel = (a) => a.branch || 'creating worktree…';
 
 function setTitle(a) {
   $('title').querySelector('b').textContent = a.name;
   $('title').querySelector('small').textContent = `${basename(a.workspace)} · ${branchLabel(a)}`;
-  // Same labels as the create form's dropdowns.
-  const label = (id, v) => $(id).querySelector(`option[value="${v || ''}"]`)?.textContent ?? v;
-  $('agentModel').textContent = `${label('model', a.model)} · ${label('effort', a.effort)}`;
+  // The model claude reported at start beats our guess from the settings files.
+  const model = a.liveModel ? optionText('model', a.liveModel) : choiceText('model', a.model, a.defaults?.model);
+  $('agentModel').textContent = `${model} · ${choiceText('effort', a.effort, a.defaults?.effort)}`;
 }
 
 async function select(id) {
@@ -172,7 +187,10 @@ $('runBtn').onclick = () => {
 
 // Turn one stream-json event into readable lines.
 function handleEvent(agent, evt) {
-  if (evt.type === 'you') {
+  if (evt.type === 'system' && evt.subtype === 'init' && evt.model) {
+    agent.liveModel = evt.model;
+    if (state.active === agent.id) setTitle(agent);
+  } else if (evt.type === 'you') {
     addLine(agent, 'you', '› ' + evt.text); // only in saved history; live messages are added on send
   } else if (evt.type === 'assistant') {
     for (const block of evt.message?.content ?? []) {
