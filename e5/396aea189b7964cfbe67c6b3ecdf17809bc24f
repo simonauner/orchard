@@ -1,0 +1,28 @@
+test/settings.test.js
+  s_046da4d29ce489::t_9879eb2c51c506 30-53
+preload.js
+  s_046da4d29ce489::t_9879eb2c51c506 7
+renderer/renderer.js
+  s_046da4d29ce489::t_9879eb2c51c506 149,153-166,172-174,223-226
+agent.js
+  s_046da4d29ce489::t_9879eb2c51c506 148-166,213
+main.js
+  s_046da4d29ce489::t_9879eb2c51c506 4,62,89
+  s_046da4d29ce489::t_b6c129145f038e 90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e5396aea189b7964cfbe67c6b3ecdf17809bc24f",
+  "prompts": {},
+  "sessions": {
+    "s_046da4d29ce489": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "26755f33-e07f-4e02-8c0e-594b0f6a1286",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
