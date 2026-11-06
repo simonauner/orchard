@@ -13,7 +13,40 @@ function addLine(agent, cls, text, tab = 'chat') {
   if (state.active === agent.id && state.tab === tab) appendLineEl({ cls, text });
 }
 
+// Agent output is untrusted: show raw HTML as text instead of rendering it.
+const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+marked.use({ renderer: { html: ({ text }) => escapeHtml(text) } });
+
+const COPY_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="2"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>';
+
+function copyButton(label, html, write) {
+  const b = el('button', 'icon');
+  b.title = b.ariaLabel = label;
+  b.innerHTML = html;
+  b.onclick = async () => {
+    await write();
+    b.innerHTML = '✓';
+    setTimeout(() => (b.innerHTML = html), 1200);
+  };
+  return b;
+}
+
+// Assistant text rendered as markdown, with hover buttons to copy it formatted or as markdown.
+function assistantEl(text) {
+  const d = el('div', 'msg assistant');
+  const body = el('div', 'md');
+  body.innerHTML = marked.parse(text);
+  const actions = el('div', 'actions');
+  actions.append(
+    copyButton('Copy', COPY_ICON, () => window.agents.copy({ html: body.innerHTML, text: body.innerText })),
+    copyButton('Copy as markdown', 'MD', () => window.agents.copy({ text })),
+  );
+  d.append(body, actions);
+  return d;
+}
+
 function lineEl(line) {
+  if (line.cls === 'assistant') return assistantEl(line.text);
   if (!line.lines) return el('div', 'msg ' + line.cls, line.text);
   const d = el('details', 'msg fold');
   d.appendChild(el('summary', null, line.text));
@@ -191,7 +224,7 @@ function handleEvent(agent, evt) {
     agent.liveModel = evt.model;
     if (state.active === agent.id) setTitle(agent);
   } else if (evt.type === 'you') {
-    addLine(agent, 'you', '› ' + evt.text); // only in saved history; live messages are added on send
+    addLine(agent, 'you', evt.text); // only in saved history; live messages are added on send
   } else if (evt.type === 'assistant') {
     for (const block of evt.message?.content ?? []) {
       if (block.type === 'text') addLine(agent, 'assistant', block.text);
@@ -294,7 +327,7 @@ $('createForm').onsubmit = async (e) => {
     const agent = { ...info, lines: [], logs: { setup: [], run: [] }, running: {} };
     state.tab = 'chat';
     state.agents.set(info.id, agent);
-    addLine(agent, 'you', '› ' + prompt);
+    addLine(agent, 'you', prompt);
     select(info.id);
   } finally {
     btn.disabled = false;
@@ -325,7 +358,7 @@ $('form').onsubmit = async (e) => {
   if (agent.status === 'setup') { addLine(agent, 'meta', 'Still setting up the worktree, try again in a moment.'); return; }
   input.value = '';
   syncGo();
-  addLine(agent, 'you', '› ' + text);
+  addLine(agent, 'you', text);
   const ok = await window.agents.send(agent.id, text);
   if (!ok) addLine(agent, 'meta', 'Could not start the agent.');
 };

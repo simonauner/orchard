@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Notification, shell, clipboard } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { Agent, checkExecutable, claudeDefaults, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify } = require('./agent');
@@ -45,6 +45,10 @@ function createWindow() {
     },
   });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  // Links in agent replies open in the browser; the app window never navigates away.
+  const openLink = (url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); };
+  win.webContents.on('will-navigate', (e, url) => { e.preventDefault(); openLink(url); });
+  win.webContents.setWindowOpenHandler(({ url }) => { openLink(url); return { action: 'deny' }; });
 }
 
 // Processes can exit after the window is gone; sending to a destroyed window throws.
@@ -80,6 +84,7 @@ function startScript(agent, kind, command) {
 const stopJobs = (agent) => Promise.all(Object.values(agent.jobs).filter(Boolean).map((j) => j.kill()));
 
 ipcMain.handle('workspaces:list', () => workspaces);
+ipcMain.handle('clipboard:write', (_e, data) => clipboard.write({ text: String(data.text ?? ''), html: data.html ? String(data.html) : undefined }));
 
 ipcMain.handle('claude:defaults', (_e, workspace) => (workspaces.includes(workspace) ? claudeDefaults(workspace) : {}));
 
