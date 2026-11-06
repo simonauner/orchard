@@ -1,0 +1,41 @@
+preload.js
+  s_b252f4e26f3492::t_97a6cd2cf5e02e 15
+renderer/index.html
+  s_b252f4e26f3492::t_7e719d666b7f5a 27,63-67,131-137
+main.js
+  s_b252f4e26f3492::t_b9815a1ebdde04 111
+  s_b252f4e26f3492::t_e9bc0772c083ed 124,129-144
+  s_b252f4e26f3492::t_e364d5d1ba6ebb 55
+  s_b252f4e26f3492::t_a8e40ec467900d 125
+  s_b252f4e26f3492::t_0408831a61f548 151
+  s_b252f4e26f3492::t_ee4a6417bd538b 4
+  s_b252f4e26f3492::t_b901cf7a449894 101-102,112-113
+  s_b252f4e26f3492::t_5bdf944b3d3a9f 145
+renderer/renderer.js
+  s_b252f4e26f3492::t_e787a727ae6ebc 99
+  s_b252f4e26f3492::t_0d96c4de1d7301 224-230
+  s_b252f4e26f3492::t_945e3d8ed4a6e0 216
+  s_b252f4e26f3492::t_3a441df559e279 44
+  s_b252f4e26f3492::t_e395c9033be78e 102
+  s_b252f4e26f3492::t_ae4351f6c9d8ba 90-92
+  s_b252f4e26f3492::t_029d06c9c4aa80 236
+  s_b252f4e26f3492::t_8dbe598a569620 238
+  s_b252f4e26f3492::t_a85642f98685d2 248-254
+  s_b252f4e26f3492::t_1560f3e75a3ab6 85-89,93-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b561c9baca31a890cc343cf47570cb1e72125401",
+  "prompts": {},
+  "sessions": {
+    "s_b252f4e26f3492": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aef2162a-bbe2-4163-8aaa-7c6bc9dc03a7",
+        "model": "unknown"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
