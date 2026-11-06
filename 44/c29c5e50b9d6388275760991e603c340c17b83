@@ -1,0 +1,38 @@
+renderer/index.html
+  s_b907a91cef591e::t_f8822f7f72031c 39-55,72,103-123
+  s_b907a91cef591e::t_453af3b2254538 124
+renderer/renderer.js
+  s_b907a91cef591e::t_f8822f7f72031c 55-56,71-77,79,88,116-170
+  s_b907a91cef591e::t_713ad1065915d5 2
+  s_b907a91cef591e::t_c41fd1180da913 171
+test/settings.test.js
+  s_b907a91cef591e::t_5ead04061cf806 1-29
+package.json
+  s_b907a91cef591e::t_5ead04061cf806 8
+test/fake-claude.js
+  s_b907a91cef591e::t_5ead04061cf806 5-19
+preload.js
+  s_b907a91cef591e::t_d60f592f591809 6-9
+main.js
+  s_b907a91cef591e::t_d60f592f591809 4,10-12,14,16,19-21,24-31,56-76,100,142-144
+agent.js
+  s_b907a91cef591e::t_14e19480e09dad 123-145,180-182
+README.md
+  s_b907a91cef591e::t_8c72852c01bad9 32-41,44,47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "44c29c5e50b9d6388275760991e603c340c17b83",
+  "prompts": {},
+  "sessions": {
+    "s_b907a91cef591e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7c3b8461-57d6-498d-a53d-c7be464091d6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
