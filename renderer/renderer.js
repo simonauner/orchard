@@ -156,6 +156,15 @@ function renderWorkspace(ws, target) {
   }
 }
 
+// The first nine visible agents get the number that ⌘1–9 jumps to.
+function numberItems() {
+  let n = 0;
+  for (const d of listEl.querySelectorAll('.item .dot')) { // on the dot itself: CSS attr() only reads its own element
+    if (d.offsetParent && n < 9) d.dataset.n = ++n;
+    else delete d.dataset.n;
+  }
+}
+
 function renderList() {
   listEl.innerHTML = '';
   if (!state.workspaces.length) listEl.appendChild(el('div', 'hint', 'Add a git repo with + to get started.'));
@@ -163,11 +172,12 @@ function renderList() {
   if (state.hidden.length) {
     const box = el('details', 'hiddenWs');
     box.open = state.hiddenOpen;
-    box.ontoggle = () => { state.hiddenOpen = box.open; };
+    box.ontoggle = () => { state.hiddenOpen = box.open; numberItems(); };
     box.appendChild(el('summary', null, `Hidden workspaces (${state.hidden.length})`));
     for (const ws of state.hidden) renderWorkspace(ws, box);
     listEl.appendChild(box);
   }
+  numberItems();
   $('navCreate').classList.toggle('active', state.view === 'create');
   $('navSettings').classList.toggle('active', state.view === 'settings');
 }
@@ -279,6 +289,7 @@ async function select(id) {
   sel.value = a.runChoice || a.runs.find((r) => r.default)?.name || a.runs[0]?.name || '';
   syncGo();
   renderLog(a);
+  renderQueue(a);
   showTab(state.tab);
   renderGit(a);
   refreshGit(id);
@@ -340,7 +351,7 @@ window.agents.onTermExit((id) => {
 
 // While a run script is going: Stop, and "Open :port" once it has printed a localhost URL.
 function syncRunBtns(a) {
-  $('runBtn').textContent = a.running.run ? '■ Stop' : '▶ Run';
+  $('runBtn').textContent = a.running.run ? '■ Stop ⌘R' : '▶ Run ⌘R';
   $('runSel').hidden = !a.runs.length || !!a.running.run; // makes room for Open while running
   $('openBtn').hidden = !a.running.run || !a.openUrl;
   if (!a.openUrl) return;
@@ -564,13 +575,35 @@ $('form').onsubmit = async (e) => {
   const text = input.value.trim();
   const agent = state.agents.get(state.active);
   if (!text || !agent) return;
-  if (agent.status === 'setup') { addLine(agent, 'meta', 'Still setting up the worktree, try again in a moment.'); return; }
   input.value = '';
   syncGo();
+  if (agent.status === 'working' || agent.status === 'setup') { (agent.queue ??= []).push(text); renderQueue(agent); }
+  else sendNow(agent, text);
+};
+
+async function sendNow(agent, text) {
+  agent.status = 'working'; // before main's status event arrives, so a quick second message is queued too
   addLine(agent, 'you', text);
   const ok = await window.agents.send(agent.id, text);
   if (!ok) addLine(agent, 'meta', 'Could not start the agent.');
-};
+}
+
+// Messages sent while the agent works wait here and go out one per finished turn.
+function renderQueue(a) {
+  if (state.active !== a.id) return;
+  const box = $('queue');
+  box.innerHTML = '';
+  (a.queue ?? []).forEach((text, i) => {
+    const row = el('div', 'queued');
+    row.appendChild(el('span', 'name', text));
+    const rm = el('button', 'icon', '×');
+    rm.title = rm.ariaLabel = 'Remove queued message';
+    rm.onclick = () => { a.queue.splice(i, 1); renderQueue(a); };
+    row.appendChild(rm);
+    box.appendChild(row);
+  });
+  box.hidden = !box.childElementCount;
+}
 
 window.agents.onEvent((id, evt) => {
   const a = state.agents.get(id);
@@ -604,6 +637,7 @@ window.agents.onStatus((id, status) => {
   const a = state.agents.get(id);
   if (!a) return;
   a.status = status;
+  if (status === 'done' && a.queue?.length) { sendNow(a, a.queue.shift()); renderQueue(a); }
   renderList();
   if (status === 'done') refreshGit(id); // the agent may have committed or opened a PR
 });
@@ -633,3 +667,25 @@ for (const handle of document.querySelectorAll('.resizer')) {
     handle.addEventListener('pointerup', up, { once: true });
   });
 }
+
+// Keyboard shortcuts. Capture phase, so xterm and textareas don't swallow them; preventDefault also stops the default menu's Cmd+R reload.
+let cmdTimer = null;
+const hideNums = () => { clearTimeout(cmdTimer); cmdTimer = null; document.body.classList.remove('showNums'); };
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Meta') { if (!cmdTimer) cmdTimer = setTimeout(() => document.body.classList.add('showNums'), 500); return; }
+  if (!/^[1-9]$/.test(e.key)) hideNums(); // ⌘C and friends shouldn't flash the numbers
+  if (!e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+  const k = e.key.toLowerCase();
+  if (k === 'r') {
+    if (state.view === 'chat' && !$('runBtn').hidden) $('runBtn').click();
+  } else if (k === 'l') {
+    (state.view === 'chat' ? input : $('prompt')).focus();
+  } else if (k === 'n') {
+    showCreate(state.agents.get(state.active)?.workspace);
+  } else if (/^[1-9]$/.test(k)) {
+    listEl.querySelector(`.dot[data-n="${k}"]`)?.closest('.item').click();
+  } else return;
+  e.preventDefault();
+}, true);
+window.addEventListener('keyup', (e) => { if (e.key === 'Meta') hideNums(); });
+window.addEventListener('blur', hideNums);

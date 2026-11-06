@@ -31,6 +31,10 @@
     .item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .item .rm { visibility: hidden; display: inline-flex; padding: 2px 4px; }
     .item:hover .rm, .item.active .rm { visibility: visible; }
+    /* The number replaces the status dot in place; absolute, so the row never shifts. */
+    .item .dot { position: relative; }
+    .showNums .dot[data-n] { background: none; }
+    .showNums .dot[data-n]::after { content: attr(data-n); position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 11px; font-weight: 600; line-height: 1; }
     .hint { padding: 6px 12px; color: var(--muted); font-size: 12px; }
     .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #999; }
     .dot.working, .dot.setup { background: #e0a800; } .dot.done { background: #2e9e4f; }
@@ -118,6 +122,11 @@
     .fold[open] > summary { margin-bottom: 12px; }
     .fold.live > summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .fold > .msg { padding-left: 14px; border-left: 2px solid var(--bd); margin-bottom: 0; padding-bottom: 12px; }
+    #queue { margin: 0 auto 8px; width: calc(100% - 32px); max-width: 800px; }
+    #queue[hidden] { display: none; }
+    .queued { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px dashed var(--bd); border-radius: 6px; margin-bottom: 4px; color: var(--muted); font-size: 13px; }
+    .queued::before { content: 'Queued'; font-size: 11px; font-weight: 600; }
+    .queued .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #form { margin: 0 auto 16px; width: calc(100% - 32px); max-width: 800px; }
     #form textarea { min-height: 60px; max-height: 40vh; resize: none; }
     #agentModel { color: var(--muted); font-size: 13px; padding: 4px; }
@@ -188,6 +197,7 @@
       <div id="chatCol">
       <div id="title"><b></b><small></small></div>
       <div id="log"></div>
+      <div id="queue" hidden></div>
       <form class="card" id="form">
         <textarea id="text" placeholder="Message the agent…" aria-label="Message the agent"></textarea>
         <div class="row">
@@ -212,7 +222,7 @@
           <span class="spacer"></span>
           <select id="runSel" aria-label="Run script"></select>
           <a class="btn" id="openBtn" target="_blank" hidden></a>
-          <button class="btn" id="runBtn">▶ Run</button>
+          <button class="btn" id="runBtn">▶ Run ⌘R</button>
         </div>
         <div id="out"></div>
         <div id="term" hidden></div>
