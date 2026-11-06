@@ -59,3 +59,16 @@ assert.ok(!new Agent({ id: 4, cwd: '.' }).args.includes('--model'));
 assert.throws(() => new Agent({ id: 5, cwd: '.', model: '--dangerously-skip-permissions' }), /Unknown model/);
 assert.throws(() => new Agent({ id: 6, cwd: '.', effort: 'ultra' }), /Unknown effort/);
 console.log('OK: model/effort allowlist');
+
+// A restarted agent resumes its session; the id comes from disk, so it must not pass as a flag.
+const r = new Agent({ id: 7, cwd: process.cwd(), command: process.execPath, args: [path.join(__dirname, 'fake-claude.js')] });
+r.sessionId = 'sess-1';
+r.start();
+assert.deepStrictEqual(r.proc.spawnargs.slice(-2), ['--resume', 'sess-1']);
+assert.strictEqual(r.running, true);
+r.stop().then(() => {
+  assert.strictEqual(r.running, false);
+  r.sessionId = '--dangerously-skip-permissions';
+  assert.throws(() => r.start(), /Invalid session id/);
+  console.log('OK: resume');
+});
