@@ -27,6 +27,8 @@ class Agent extends EventEmitter {
         // -p has no way to ask for approval, so every write was denied.
         // Edits stay inside the agent's own worktree.
         '--permission-mode', 'acceptEdits',
+        // Everything else that needs approval, and AskUserQuestion, comes to us as a control_request.
+        '--permission-prompt-tool', 'stdio',
       ];
     if (model) {
       if (!MODELS.includes(model)) throw new Error(`Unknown model: ${model}`);
@@ -37,8 +39,9 @@ class Agent extends EventEmitter {
       this.args.push('--effort', effort);
     }
     this.sessionId = null;
-    this.status = 'idle'; // idle | working | done | stopped | error
+    this.status = 'idle'; // idle | working | waiting | done | stopped | error
     this.proc = null;
+    this.pending = new Map(); // request_id -> the can_use_tool request awaiting an answer
   }
 
   setStatus(status) {
@@ -76,6 +79,13 @@ class Agent extends EventEmitter {
         return;
       }
       if (evt.session_id) this.sessionId = evt.session_id;
+      if (evt.type === 'control_request') {
+        // We register no hooks or SDK MCP servers, so anything but can_use_tool is unexpected; never leave claude waiting.
+        if (evt.request?.subtype !== 'can_use_tool') return this.write({ type: 'control_response', response: { subtype: 'error', request_id: evt.request_id, error: 'Unsupported request' } });
+        this.pending.set(evt.request_id, evt.request);
+        this.setStatus('waiting');
+      }
+      if (evt.type === 'control_cancel_request') this.pending.delete(evt.request_id);
       this.emit('event', evt);
       if (evt.type === 'result') this.setStatus('done');
     });
@@ -89,18 +99,38 @@ class Agent extends EventEmitter {
       this.setStatus('error');
     });
     this.proc.on('exit', () => {
+      this.pending.clear();
       if (this.status !== 'error') this.setStatus('stopped');
     });
   }
 
+  write(msg) {
+    this.proc.stdin.write(JSON.stringify(msg) + '\n');
+  }
+
   send(text) {
     if (!this.proc || this.proc.killed || this.status === 'stopped') return false;
-    const msg = {
-      type: 'user',
-      message: { role: 'user', content: [{ type: 'text', text }] },
-    };
-    this.proc.stdin.write(JSON.stringify(msg) + '\n');
+    this.write({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } });
     this.setStatus('working');
+    return true;
+  }
+
+  // Answers a can_use_tool request. The tool input is the one claude sent, so the UI cannot change a command;
+  // answers ({question: label}) are only taken for AskUserQuestion. Returns false if the request is gone.
+  respond(requestId, { allow, answers, message } = {}) {
+    const req = this.pending.get(requestId);
+    if (!req || !this.running) return false;
+    this.pending.delete(requestId);
+    let response;
+    if (!allow) response = { behavior: 'deny', message: String(message || 'The user denied this.') };
+    else if (req.tool_name === 'AskUserQuestion') {
+      const asked = new Set((req.input?.questions ?? []).map((q) => q.question));
+      const picked = Object.fromEntries(Object.entries(answers ?? {}).filter(([q, a]) => asked.has(q) && typeof a === 'string'));
+      response = { behavior: 'allow', updatedInput: { ...req.input, answers: picked } };
+    } else response = { behavior: 'allow', updatedInput: req.input };
+    this.write({ type: 'control_response', response: { subtype: 'success', request_id: requestId, response } });
+    this.emit('event', { type: 'control_answer', request_id: requestId, behavior: response.behavior, answers: response.updatedInput?.answers });
+    if (!this.pending.size) this.setStatus('working');
     return true;
   }
 

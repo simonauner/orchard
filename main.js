@@ -262,8 +262,8 @@ function track(agent) {
   });
   agent.on('status', (status) => {
     toUi('agent:status', agent.id, status);
-    if (status === 'done' && win && !win.isDestroyed() && !win.isFocused()) {
-      new Notification({ title: 'Agent done', body: agent.task }).show();
+    if ((status === 'done' || status === 'waiting') && win && !win.isDestroyed() && !win.isFocused()) {
+      new Notification({ title: status === 'done' ? 'Agent done' : 'Agent needs you', body: agent.task }).show();
     }
   });
 }
@@ -314,6 +314,10 @@ ipcMain.handle('agent:history', (_e, id) => {
 ipcMain.handle('agent:send', (_e, id, text) => {
   const agent = agents.get(id);
   return agent ? send(agent, String(text)) : false;
+});
+ipcMain.handle('agent:respond', (_e, id, requestId, answer) => {
+  const a = answer ?? {};
+  return agents.get(id)?.respond(String(requestId), { allow: a.allow === true, answers: a.answers, message: a.message }) ?? false;
 });
 ipcMain.handle('agent:stop', (_e, id) => agents.get(id)?.stop());
 

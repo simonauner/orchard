@@ -72,3 +72,37 @@ r.stop().then(() => {
   assert.throws(() => r.start(), /Invalid session id/);
   console.log('OK: resume');
 });
+
+// Permission requests: the agent waits, the answer goes back with claude's own input, unknown ids are refused.
+function ask(id, tool, answer) {
+  const x = new Agent({ id, cwd: process.cwd(), command: process.execPath, args: [path.join(__dirname, 'fake-claude.js')] });
+  const statuses = [];
+  x.on('status', (s) => statuses.push(s));
+  return new Promise((resolve) => {
+    x.on('event', (e) => {
+      if (e.type === 'control_request') {
+        assert.strictEqual(x.status, 'waiting');
+        assert.strictEqual(x.respond('nope', answer), false);
+        assert.strictEqual(x.respond('req-1', answer), true);
+        assert.strictEqual(x.respond('req-1', answer), false); // answered once only
+      }
+      if (e.type === 'assistant') {
+        const reply = JSON.parse(e.message.content[0].text.replace('echo: answer: ', ''));
+        x.stop().then(() => resolve({ reply, statuses }));
+      }
+    });
+    x.start();
+    x.send('ask:' + tool);
+  });
+}
+ask(8, 'Bash', { allow: true }).then(({ reply, statuses }) => {
+  assert.deepStrictEqual(reply, { behavior: 'allow', updatedInput: { command: 'rm -rf /tmp/x' } });
+  assert.deepStrictEqual(statuses.slice(0, 4), ['working', 'waiting', 'working', 'done']);
+  return ask(9, 'Bash', { allow: false });
+}).then(({ reply }) => {
+  assert.strictEqual(reply.behavior, 'deny');
+  return ask(10, 'AskUserQuestion', { allow: true, answers: { 'Colour?': 'blue', 'Injected?': 'x' } });
+}).then(({ reply }) => {
+  assert.deepStrictEqual(reply.updatedInput.answers, { 'Colour?': 'blue' });
+  console.log('OK: permission requests and questions');
+});

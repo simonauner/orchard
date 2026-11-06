@@ -17,9 +17,8 @@ if (argv[0] === 'auth' && argv[1] === 'status') {
   process.exit(0);
 }
 
-readline.createInterface({ input: process.stdin }).on('line', (line) => {
-  const msg = JSON.parse(line);
-  const text = msg.message.content[0].text;
+// "ask:<tool>" asks for permission first and echoes the answer it gets.
+const finish = (text) => {
   out({ type: 'system', subtype: 'init', session_id: 'sess-1' });
   out({
     type: 'assistant',
@@ -27,4 +26,16 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
     message: { role: 'assistant', content: [{ type: 'text', text: 'echo: ' + text }] },
   });
   out({ type: 'result', subtype: 'success', session_id: 'sess-1', total_cost_usd: 0.001 });
+};
+
+readline.createInterface({ input: process.stdin }).on('line', (line) => {
+  const msg = JSON.parse(line);
+  if (msg.type === 'control_response') return finish('answer: ' + JSON.stringify(msg.response.response));
+  const text = msg.message.content[0].text;
+  if (!text.startsWith('ask:')) return finish(text);
+  const tool = text.slice(4);
+  const input = tool === 'AskUserQuestion'
+    ? { questions: [{ question: 'Colour?', options: [{ label: 'red' }, { label: 'blue' }] }] }
+    : { command: 'rm -rf /tmp/x' };
+  out({ type: 'control_request', request_id: 'req-1', request: { subtype: 'can_use_tool', tool_name: tool, input } });
 });

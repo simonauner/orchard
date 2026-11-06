@@ -37,7 +37,7 @@
     .showNums .dot[data-n]::after { content: attr(data-n); position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 11px; font-weight: 600; line-height: 1; }
     .hint { padding: 6px 12px; color: var(--muted); font-size: 12px; }
     .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #999; }
-    .dot.working, .dot.setup { background: #e0a800; } .dot.done { background: #2e9e4f; }
+    .dot.working, .dot.setup { background: #e0a800; } .dot.waiting { background: #3b82f6; } .dot.done { background: #2e9e4f; }
     .dot.error, .dot.stopped { background: #d33; }
     main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     #createView { margin: 12vh auto 0; width: min(600px, 100% - 32px); }
@@ -92,6 +92,15 @@
     #log { flex: 1; overflow: auto; padding: 16px max(16px, calc((100% - 800px) / 2)); }
     .msg { margin: 0 0 12px; white-space: pre-wrap; line-height: 1.45; }
     .msg.you { margin-left: auto; width: fit-content; max-width: 75%; padding: 8px 12px; border-radius: 14px; background: var(--hover); }
+    .msg.ask { white-space: normal; padding: 10px 12px; border: 1px solid var(--bd); border-radius: 10px; display: grid; gap: 8px; }
+    .msg.ask pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12px; max-height: 240px; overflow: auto; }
+    .msg.ask fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 4px; }
+    .msg.ask legend { font-weight: 600; margin-bottom: 4px; }
+    .msg.ask label { display: flex; flex-wrap: wrap; gap: 0 6px; align-items: baseline; cursor: pointer; }
+    .msg.ask input:not([type]) { padding: 4px 8px; border: 1px solid var(--bd); border-radius: 6px; background: none; }
+    .askBtns { display: flex; flex-wrap: wrap; gap: 8px; }
+    .askBtns .primary { background: #eee; color: #111; border-color: transparent; }
+    .askBtns button:disabled { opacity: .4; cursor: default; }
     .msg.assistant { white-space: normal; font-size: 15px; line-height: 1.65; }
     .md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
     .md p, .md ul, .md ol, .md pre, .md table, .md blockquote { margin: 0 0 16px; }

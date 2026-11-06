@@ -53,6 +53,7 @@ function assistantEl(text) {
 
 function lineEl(line) {
   if (line.cls === 'assistant') return assistantEl(line.text);
+  if (line.cls === 'ask') return askEl(line);
   if (!line.lines) return el('div', 'msg ' + line.cls, line.text);
   const d = el('details', 'msg fold' + (line.live ? ' live' : ''));
   d.appendChild(el('summary', null, line.text));
@@ -79,6 +80,74 @@ function renderOut(agent) {
   if (!lines.length)
     appendLineEl({ cls: 'meta', text: agent.configFile ? `Nothing yet. Scripts come from ${agent.configFile}.`
       : 'No scripts. Add .orchard/settings.toml (or .conductor/settings.toml) to the repo.' }, outEl);
+}
+
+// A permission request or AskUserQuestion from claude; it waits until the user answers here.
+// line: { cls: 'ask', agentId, req: {request_id, tool_name, display_name, description, input}, done: null | text }
+function askEl(line) {
+  const { req } = line;
+  const d = el('div', 'msg ask');
+  const answer = async (ans, doneText) => {
+    for (const b of d.querySelectorAll('button')) b.disabled = true;
+    const ok = await window.agents.respond(line.agentId, req.request_id, ans);
+    settleAsk(line, ok ? doneText : 'No longer pending (the agent was restarted or stopped).');
+  };
+  const buttons = el('div', 'askBtns');
+  if (req.tool_name === 'AskUserQuestion') {
+    const qs = req.input?.questions ?? [];
+    const fields = qs.map((q, i) => {
+      const box = el('fieldset');
+      box.appendChild(el('legend', null, q.header ? `${q.header}: ${q.question}` : q.question));
+      for (const o of q.options ?? []) {
+        const lab = el('label');
+        const inp = el('input');
+        inp.type = q.multiSelect ? 'checkbox' : 'radio';
+        inp.name = `${req.request_id}-${i}`;
+        inp.value = o.label;
+        lab.append(inp, el('b', null, o.label), o.description ? el('span', 'meta', ` ${o.description}`) : '');
+        box.appendChild(lab);
+      }
+      const other = el('input');
+      other.placeholder = 'Other…';
+      box.appendChild(other);
+      d.appendChild(box);
+      // Other text wins over a picked option for single-choice questions.
+      return () => {
+        const picked = [...box.querySelectorAll('input:checked')].map((x) => x.value);
+        const text = other.value.trim();
+        return q.multiSelect ? [...picked, text].filter(Boolean).join(', ') : text || picked[0] || '';
+      };
+    });
+    const send = el('button', 'btn primary', 'Send answer');
+    send.onclick = () => {
+      const answers = Object.fromEntries(qs.map((q, i) => [q.question, fields[i]()]));
+      if (Object.values(answers).some((a) => !a)) return alert('Answer every question first.');
+      answer({ allow: true, answers }, 'Answered: ' + Object.values(answers).join(' · '));
+    };
+    const skip = el('button', 'btn', 'Skip');
+    skip.onclick = () => answer({ allow: false, message: 'The user skipped the question.' }, 'Skipped');
+    buttons.append(send, skip);
+  } else {
+    d.appendChild(el('b', null, `Claude wants to use ${req.display_name || req.tool_name}`));
+    if (req.description) d.appendChild(el('div', 'meta', req.description));
+    d.appendChild(el('pre', null, req.input?.command ?? JSON.stringify(req.input, null, 2)));
+    const allow = el('button', 'btn primary', 'Allow');
+    allow.onclick = () => answer({ allow: true }, 'Allowed');
+    const deny = el('button', 'btn', 'Deny');
+    deny.onclick = () => answer({ allow: false }, 'Denied');
+    buttons.append(allow, deny);
+  }
+  if (line.done) {
+    for (const x of d.querySelectorAll('input')) x.disabled = true;
+    d.appendChild(el('div', 'meta', line.done));
+  } else d.appendChild(buttons);
+  return d;
+}
+
+function settleAsk(line, done) {
+  line.done ||= done;
+  const a = state.agents.get(line.agentId);
+  if (a && state.active === a.id) renderLog(a);
 }
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -455,6 +524,14 @@ function handleEvent(agent, evt) {
     addLine(agent, 'meta', `done${cost}`);
     for (const d of evt.permission_denials ?? [])
       addLine(agent, 'meta', `⛔ denied: ${d.tool_name} ${JSON.stringify(d.tool_input).slice(0, 200)}`);
+  } else if (evt.type === 'control_request') {
+    const line = { cls: 'ask', agentId: agent.id, req: { request_id: evt.request_id, ...evt.request }, done: null };
+    agent.lines.push(line);
+    if (state.active === agent.id) appendLineEl(line);
+  } else if (evt.type === 'control_answer' || evt.type === 'control_cancel_request') {
+    const line = agent.lines.find((l) => l.cls === 'ask' && l.req.request_id === evt.request_id);
+    const ans = evt.answers && Object.values(evt.answers).join(' · ');
+    if (line) settleAsk(line, evt.type === 'control_cancel_request' ? 'Cancelled by the agent' : ans ? `Answered: ${ans}` : evt.behavior === 'allow' ? 'Allowed' : 'Denied');
   } else if (evt.type === 'stderr' || evt.type === 'raw') {
     addLine(agent, 'meta', evt.text);
   }
@@ -577,7 +654,7 @@ $('form').onsubmit = async (e) => {
   if (!text || !agent) return;
   input.value = '';
   syncGo();
-  if (agent.status === 'working' || agent.status === 'setup') { (agent.queue ??= []).push(text); renderQueue(agent); }
+  if (['working', 'waiting', 'setup'].includes(agent.status)) { (agent.queue ??= []).push(text); renderQueue(agent); }
   else sendNow(agent, text);
 };
 
