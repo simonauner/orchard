@@ -203,10 +203,16 @@ async function createWorktree(repo, task) {
   throw new Error(`No free branch name for orchard/${base}`);
 }
 
-// No --force: git refuses if there are uncommitted or untracked files, so nothing is lost.
+// Without force git refuses if there are uncommitted or untracked files, so nothing is lost;
+// the error then carries `dirty`, those files, for the user to decide on.
 // The branch is kept, it holds the agent's commits.
-async function removeWorktree({ root, dir }) {
-  await git(root, 'worktree', 'remove', dir);
+async function removeWorktree({ root, dir }, force = false) {
+  try {
+    await git(root, 'worktree', 'remove', ...(force ? ['--force'] : []), dir);
+  } catch (e) {
+    e.dirty = await git(dir, 'status', '--porcelain').then((out) => out.split('\n').filter(Boolean), () => []);
+    throw e;
+  }
 }
 
 module.exports = {

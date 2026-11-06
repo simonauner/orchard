@@ -282,7 +282,7 @@ function restoreAgents() {
   }
 }
 
-ipcMain.handle('agent:remove', async (_e, id) => {
+ipcMain.handle('agent:remove', async (_e, id, force = false) => {
   const agent = agents.get(id);
   if (!agent) return { ok: true };
   await Promise.all([agent.stop(), stopJobs(agent)]);
@@ -291,9 +291,9 @@ ipcMain.handle('agent:remove', async (_e, id) => {
     if (code !== 0) return { ok: false, error: `The archive script exited with ${code}; see the Setup tab.` };
   }
   try {
-    if (agent.worktree.dir) await removeWorktree(agent.worktree);
+    if (agent.worktree.dir) await removeWorktree(agent.worktree, force === true);
   } catch (e) {
-    return { ok: false, error: e.message };
+    return { ok: false, error: e.message, dirty: e.dirty };
   }
   agents.delete(id);
   saveAgents();

@@ -46,11 +46,10 @@ const git = (cwd, ...a) => execFileSync('git', ['-C', cwd, ...a], { encoding: 'u
 
     // Uncommitted work blocks removal so nothing is lost.
     fs.writeFileSync(path.join(wt.dir, 'wip.txt'), 'x');
-    await assert.rejects(removeWorktree(wt), /untracked|modified/);
+    await assert.rejects(removeWorktree(wt), (e) => /untracked|modified/.test(e.message) && e.dirty.includes('?? wip.txt'));
     assert.ok(fs.existsSync(path.join(wt.dir, 'wip.txt')));
 
-    fs.rmSync(path.join(wt.dir, 'wip.txt'));
-    await removeWorktree(wt);
+    await removeWorktree(wt, true); // the user confirmed deleting them
     assert.ok(!fs.existsSync(wt.dir));
     assert.ok(!git(repo, 'worktree', 'list').includes('fixa-login'));
     assert.strictEqual(git(repo, 'branch', '--list', 'orchard/fixa-login'), 'orchard/fixa-login'); // branch kept

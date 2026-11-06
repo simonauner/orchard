@@ -543,7 +543,9 @@ $('createForm').onsubmit = async (e) => {
 
 async function remove(agent) {
   if (!confirm(`Archive "${agent.name}"? Its archive script runs and the worktree is removed.${agent.branch ? ` The branch ${agent.branch} is kept.` : ''}`)) return;
-  const res = await window.agents.remove(agent.id);
+  let res = await window.agents.remove(agent.id);
+  if (res.dirty?.length && confirm(`The worktree has uncommitted or untracked files:\n\n${res.dirty.slice(0, 20).join('\n')}${res.dirty.length > 20 ? `\n…and ${res.dirty.length - 20} more` : ''}\n\nDelete them and archive anyway?`))
+    res = await window.agents.remove(agent.id, true);
   if (!res.ok) { addLine(agent, 'meta', `Could not archive: ${res.error}`); return; }
   state.agents.delete(agent.id);
   if (state.active === agent.id) showCreate(agent.workspace);
