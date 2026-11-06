@@ -17,6 +17,9 @@ class Agent extends EventEmitter {
         '--input-format', 'stream-json',
         '--output-format', 'stream-json',
         '--verbose',
+        // -p has no way to ask for approval, so every write was denied.
+        // Edits stay inside the agent's working folder.
+        '--permission-mode', 'acceptEdits',
       ];
     this.sessionId = null;
     this.status = 'idle'; // idle | working | done | stopped | error

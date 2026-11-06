@@ -19,6 +19,11 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
 
+// Processes can exit after the window is gone; sending to a destroyed window throws.
+function toUi(...args) {
+  if (win && !win.isDestroyed()) win.webContents.send(...args);
+}
+
 function publicInfo(a) {
   return { id: a.id, cwd: a.cwd, status: a.status, name: path.basename(a.cwd) };
 }
@@ -30,10 +35,10 @@ ipcMain.handle('agent:create', async () => {
   const agent = new Agent({ id: nextId++, cwd: res.filePaths[0] });
   agents.set(agent.id, agent);
 
-  agent.on('event', (event) => win?.webContents.send('agent:event', agent.id, event));
+  agent.on('event', (event) => toUi('agent:event', agent.id, event));
   agent.on('status', (status) => {
-    win?.webContents.send('agent:status', agent.id, status);
-    if (status === 'done' && !win?.isFocused()) {
+    toUi('agent:status', agent.id, status);
+    if (status === 'done' && win && !win.isDestroyed() && !win.isFocused()) {
       new Notification({ title: 'Agent klar', body: path.basename(agent.cwd) }).show();
     }
   });

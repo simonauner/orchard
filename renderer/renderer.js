@@ -51,6 +51,8 @@ function handleEvent(agent, evt) {
   } else if (evt.type === 'result') {
     const cost = evt.total_cost_usd != null ? ` · $${evt.total_cost_usd.toFixed(4)}` : '';
     addLine(agent, 'meta', `klar${cost}`);
+    for (const d of evt.permission_denials ?? [])
+      addLine(agent, 'meta', `⛔ nekad: ${d.tool_name} ${JSON.stringify(d.tool_input).slice(0, 200)}`);
   } else if (evt.type === 'stderr' || evt.type === 'raw') {
     addLine(agent, 'meta', evt.text);
   }
