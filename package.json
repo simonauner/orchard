@@ -1,0 +1,13 @@
+{
+  "name": "agent-workspace",
+  "version": "0.1.0",
+  "description": "Minimal desktop workspace for running several Claude Code agents",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/agent.test.js"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}

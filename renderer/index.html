@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <title>Agent Workspace</title>
+  <style>
+    :root { color-scheme: light dark; --bd: #8884; --muted: #888; }
+    * { box-sizing: border-box; }
+    body { margin: 0; height: 100vh; display: flex; font: 14px system-ui, sans-serif; }
+    #side { width: 240px; border-right: 1px solid var(--bd); display: flex; flex-direction: column; }
+    #side header { padding: 10px; border-bottom: 1px solid var(--bd); }
+    #side button { width: 100%; padding: 8px; cursor: pointer; }
+    #list { flex: 1; overflow: auto; }
+    .item { padding: 10px; cursor: pointer; border-bottom: 1px solid var(--bd); }
+    .item.active { background: #8882; }
+    .item small { display: block; color: var(--muted); margin-top: 2px; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: #999; }
+    .dot.working { background: #e0a800; } .dot.done { background: #2e9e4f; }
+    .dot.error, .dot.stopped { background: #d33; }
+    #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    #log { flex: 1; overflow: auto; padding: 16px; }
+    .msg { margin: 0 0 12px; white-space: pre-wrap; line-height: 1.45; }
+    .you { color: var(--muted); }
+    .tool { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
+    .meta { color: var(--muted); font-size: 12px; }
+    form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--bd); }
+    input { flex: 1; padding: 8px; }
+    #empty { margin: auto; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div id="side">
+    <header><button id="new">+ Ny agent</button></header>
+    <div id="list"></div>
+  </div>
+  <div id="main">
+    <div id="log"><div id="empty">Välj en mapp med "+ Ny agent" för att starta.</div></div>
+    <form id="form">
+      <input id="text" placeholder="Skriv till agenten…" autocomplete="off" disabled />
+      <button disabled id="go">Skicka</button>
+    </form>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
