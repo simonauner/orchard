@@ -1,6 +1,6 @@
-# Agent Workspace
+# Orchard
 
-Minimal Electron app that runs several Claude Code processes and streams their replies to a chat UI.
+Orchard is a minimal Electron app that runs several Claude Code processes and streams their replies to a chat UI.
 
 ## Getting started
 
@@ -18,7 +18,7 @@ the list is saved in `workspaces.json` in the app's user data folder.
 
 "+ Create" (or "+" on a workspace) opens the create view: pick a workspace, model and effort,
 describe the task and press Enter (Shift+Enter for a new line). The app runs
-`git worktree add -b agent/<slug> <repo>-worktrees/<slug>`, where the slug comes from the first
+`git worktree add -b orchard/<slug> <repo>-orchard/<slug>`, where the slug comes from the first
 line of the prompt (a taken slug gets `-2`, `-3`, …), starts claude there and sends the prompt as
 the first message. Model and effort are passed as `--model`/`--effort`; "Default" leaves them out.
 
@@ -26,7 +26,7 @@ Claude runs with `--permission-mode acceptEdits`: file edits inside the worktree
 automatically, tools that need approval are denied and shown as "⛔ denied" in the chat.
 
 "×" on an agent stops it and runs `git worktree remove` (without `--force`). If the worktree has
-uncommitted changes, git refuses and the worktree stays. The `agent/<slug>` branch is always kept.
+uncommitted changes, git refuses and the worktree stays. The `orchard/<slug>` branch is always kept.
 Worktrees are not removed when the app quits, and agents are not restored on the next start.
 
 ## Settings

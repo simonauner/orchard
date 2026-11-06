@@ -1,7 +1,8 @@
 {
-  "name": "agent-workspace",
+  "name": "orchard",
+  "productName": "Orchard",
   "version": "0.1.0",
-  "description": "Minimal desktop workspace for running several Claude Code agents",
+  "description": "Orchard: run several Claude Code agents side by side, each in its own git worktree",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

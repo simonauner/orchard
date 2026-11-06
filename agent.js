@@ -154,7 +154,7 @@ async function branchExists(root, branch) {
   }
 }
 
-// New branch agent/<slug> checked out in <repo>-worktrees/<slug>, next to the repo.
+// New branch orchard/<slug> checked out in <repo>-orchard/<slug>, next to the repo.
 // A taken slug gets -2, -3, ... so similar tasks never collide.
 async function createWorktree(repo, task) {
   const base = slugify(task).slice(0, 40).replace(/-+$/, '');
@@ -162,13 +162,13 @@ async function createWorktree(repo, task) {
   const root = await repoRoot(repo);
   for (let n = 1; n <= 100; n++) {
     const slug = n === 1 ? base : `${base}-${n}`;
-    const dir = path.join(`${root}-worktrees`, slug);
-    const branch = `agent/${slug}`;
+    const dir = path.join(`${root}-orchard`, slug);
+    const branch = `orchard/${slug}`;
     if (fs.existsSync(dir) || (await branchExists(root, branch))) continue;
     await git(root, 'worktree', 'add', '-b', branch, dir);
     return { root, dir, branch };
   }
-  throw new Error(`No free branch name for agent/${base}`);
+  throw new Error(`No free branch name for orchard/${base}`);
 }
 
 // No --force: git refuses if there are uncommitted or untracked files, so nothing is lost.
