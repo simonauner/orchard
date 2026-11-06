@@ -1,0 +1,19 @@
+renderer/index.html
+  s_046da4d29ce489::t_e9fa7d83796a4b 61,63-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "19fd77b107d5204d45cabf1fab45c741d4c259ff",
+  "prompts": {},
+  "sessions": {
+    "s_046da4d29ce489": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "26755f33-e07f-4e02-8c0e-594b0f6a1286",
+        "model": "unknown"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
