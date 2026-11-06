@@ -1,0 +1,27 @@
+main.js
+  s_4473d16a9bbeb3::t_dcf64243899071 285,294,296
+test/worktree.test.js
+  s_4473d16a9bbeb3::t_dcf64243899071 49,52
+agent.js
+  s_4473d16a9bbeb3::t_dcf64243899071 206-207,209-215
+renderer/renderer.js
+  s_4473d16a9bbeb3::t_dcf64243899071 546-548
+preload.js
+  s_4473d16a9bbeb3::t_dcf64243899071 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0fec92125b2273f82bb8f75238da6455ce5890f5",
+  "prompts": {},
+  "sessions": {
+    "s_4473d16a9bbeb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11d9d9e8-7c71-4e5c-882b-33c93fe9d848",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
