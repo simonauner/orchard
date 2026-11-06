@@ -1,17 +1,23 @@
 // agents: { id, name, status, branch, workspace, runs, lines: [{cls, text}] | null until loaded,
 //          logs: { setup|run: [...] } (this run of the app only), running: {setup, run} }
-const state = { workspaces: [], agents: new Map(), active: null, view: 'create', tab: 'chat' };
+// tab: the open tab of the right-hand script panel ('setup' | 'run').
+const state = { workspaces: [], agents: new Map(), active: null, view: 'create', tab: 'run' };
 
 const $ = (id) => document.getElementById(id);
-const listEl = $('list'), logEl = $('log'), input = $('text');
+const listEl = $('list'), logEl = $('log'), outEl = $('out'), input = $('text');
 const basename = (p) => p.split('/').filter(Boolean).pop();
 
 const tabLines = (a, tab) => (tab === 'chat' ? a.lines : a.logs[tab]);
 
 function addLine(agent, cls, text, tab = 'chat') {
   tabLines(agent, tab).push({ cls, text });
-  if (state.active === agent.id && state.tab === tab) appendLineEl({ cls, text });
+  if (state.active !== agent.id) return;
+  if (tab === 'chat') appendLineEl({ cls, text });
+  else { syncPanel(agent); if (state.tab === tab) appendLineEl({ cls, text }, outEl); }
 }
+
+// The panel only takes room when the repo has scripts or something was printed (e.g. a config error).
+const syncPanel = (a) => { $('panel').hidden = !a.configFile && !a.logs.setup.length && !a.logs.run.length; };
 
 // Agent output is untrusted: show raw HTML as text instead of rendering it.
 const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -54,19 +60,25 @@ function lineEl(line) {
   return d;
 }
 
-function appendLineEl(line) {
-  logEl.appendChild(lineEl(line));
-  logEl.scrollTop = logEl.scrollHeight;
+function appendLineEl(line, target = logEl) {
+  target.appendChild(lineEl(line));
+  target.scrollTop = target.scrollHeight;
 }
 
-// Renders the open tab; the tool-call folding re-renders through here too.
+// Renders the chat; the tool-call folding re-renders through here too.
 function renderLog(agent) {
   logEl.innerHTML = '';
-  const lines = tabLines(agent, state.tab);
-  lines.forEach(appendLineEl);
-  if (!lines.length && state.tab !== 'chat')
+  agent.lines.forEach((l) => appendLineEl(l));
+}
+
+// Renders the open tab of the script panel.
+function renderOut(agent) {
+  outEl.innerHTML = '';
+  const lines = agent.logs[state.tab];
+  lines.forEach((l) => appendLineEl(l, outEl));
+  if (!lines.length)
     appendLineEl({ cls: 'meta', text: agent.configFile ? `Nothing yet. Scripts come from ${agent.configFile}.`
-      : 'No scripts. Add .orchard/settings.toml (or .conductor/settings.toml) to the repo.' });
+      : 'No scripts. Add .orchard/settings.toml (or .conductor/settings.toml) to the repo.' }, outEl);
 }
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -193,7 +205,9 @@ async function select(id) {
   }
   sel.value = a.runChoice || a.runs.find((r) => r.default)?.name || a.runs[0]?.name || '';
   syncGo();
+  renderLog(a);
   showTab(state.tab);
+  input.focus();
 }
 
 function showTab(tab) {
@@ -203,12 +217,24 @@ function showTab(tab) {
     b.classList.toggle('active', b.dataset.tab === tab);
     b.classList.toggle('running', !!a.running[b.dataset.tab]);
   }
-  $('form').hidden = tab !== 'chat';
-  $('runSel').hidden = $('runBtn').hidden = !a.runs.length;
-  $('runBtn').textContent = a.running.run ? '■ Stop' : '▶ Run';
-  renderLog(a);
-  if (tab === 'chat') input.focus();
+  $('runBtn').hidden = !a.runs.length;
+  syncRunBtns(a);
+  syncPanel(a);
+  renderOut(a);
 }
+
+// While a run script is going: Stop, and "Open :port" once it has printed a localhost URL.
+function syncRunBtns(a) {
+  $('runBtn').textContent = a.running.run ? '■ Stop' : '▶ Run';
+  $('runSel').hidden = !a.runs.length || !!a.running.run; // makes room for Open while running
+  $('openBtn').hidden = !a.running.run || !a.openUrl;
+  if (!a.openUrl) return;
+  $('openBtn').href = a.openUrl;
+  $('openBtn').textContent = `🌐 Open :${new URL(a.openUrl).port}`;
+}
+
+// Like Conductor: the first localhost URL a run script prints is the one to open.
+const LOCAL_URL = /https?:\/\/(?:localhost|127\.0\.0\.1):\d+\S*/;
 
 for (const b of document.querySelectorAll('.tabBtn')) b.onclick = () => showTab(b.dataset.tab);
 $('runSel').onchange = () => { state.agents.get(state.active).runChoice = $('runSel').value; };
@@ -325,7 +351,7 @@ $('createForm').onsubmit = async (e) => {
     if (info.error) { $('err').textContent = info.error; return; }
     $('prompt').value = '';
     const agent = { ...info, lines: [], logs: { setup: [], run: [] }, running: {} };
-    state.tab = 'chat';
+    state.tab = 'setup'; // setup starts next to the agent
     state.agents.set(info.id, agent);
     addLine(agent, 'you', prompt);
     select(info.id);
@@ -376,15 +402,19 @@ window.agents.onInfo((info) => {
 });
 window.agents.onScript((id, kind, line) => {
   const a = state.agents.get(id);
-  if (a) addLine(a, 'out', line, kind);
+  if (!a) return;
+  addLine(a, 'out', line, kind);
+  const url = kind === 'run' && !a.openUrl && line.match(LOCAL_URL)?.[0];
+  if (url) { a.openUrl = url; if (state.active === id) syncRunBtns(a); }
 });
 window.agents.onScriptState((id, kind, running) => {
   const a = state.agents.get(id);
   if (!a) return;
   a.running[kind] = running;
+  if (kind === 'run' && running) a.openUrl = null; // a new run announces its own URL
   if (state.active === id && state.view === 'chat') {
     document.querySelector(`.tabBtn[data-tab="${kind}"]`).classList.toggle('running', running);
-    $('runBtn').textContent = a.running.run ? '■ Stop' : '▶ Run';
+    syncRunBtns(a);
   }
 });
 window.agents.onStatus((id, status) => {
