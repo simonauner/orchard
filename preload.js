@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('agents', {
   status: () => ipcRenderer.invoke('settings:status'),
   browseClaude: () => ipcRenderer.invoke('settings:browseClaude'),
   setClaudePath: (file) => ipcRenderer.invoke('settings:setClaudePath', file),
+  list: () => ipcRenderer.invoke('agent:list'),
+  history: (id) => ipcRenderer.invoke('agent:history', id),
   create: (opts) => ipcRenderer.invoke('agent:create', opts),
   remove: (id) => ipcRenderer.invoke('agent:remove', id),
   send: (id, text) => ipcRenderer.invoke('agent:send', id, text),
@@ -16,5 +18,6 @@ contextBridge.exposeInMainWorld('agents', {
   onScript: (cb) => ipcRenderer.on('agent:script', (_e, id, kind, line) => cb(id, kind, line)),
   onScriptState: (cb) => ipcRenderer.on('agent:scriptState', (_e, id, kind, running) => cb(id, kind, running)),
   onEvent: (cb) => ipcRenderer.on('agent:event', (_e, id, evt) => cb(id, evt)),
+  onInfo: (cb) => ipcRenderer.on('agent:info', (_e, info) => cb(info)),
   onStatus: (cb) => ipcRenderer.on('agent:status', (_e, id, s) => cb(id, s)),
 });

@@ -1,12 +1,15 @@
-// agents: { id, name, status, branch, workspace, runs, logs: { chat|setup|run: [{cls, text}] }, running: {setup, run} }
+// agents: { id, name, status, branch, workspace, runs, lines: [{cls, text}] | null until loaded,
+//          logs: { setup|run: [...] } (this run of the app only), running: {setup, run} }
 const state = { workspaces: [], agents: new Map(), active: null, view: 'create', tab: 'chat' };
 
 const $ = (id) => document.getElementById(id);
 const listEl = $('list'), logEl = $('log'), input = $('text');
 const basename = (p) => p.split('/').filter(Boolean).pop();
 
+const tabLines = (a, tab) => (tab === 'chat' ? a.lines : a.logs[tab]);
+
 function addLine(agent, cls, text, tab = 'chat') {
-  agent.logs[tab].push({ cls, text });
+  tabLines(agent, tab).push({ cls, text });
   if (state.active === agent.id && state.tab === tab) appendLineEl({ cls, text });
 }
 
@@ -41,7 +44,7 @@ function renderList() {
     for (const a of state.agents.values()) {
       if (a.workspace !== ws) continue;
       const item = el('div', 'item' + (a.id === state.active ? ' active' : ''));
-      item.title = `${a.status} · ${a.branch}`;
+      item.title = `${a.status} · ${branchLabel(a)}`;
       item.appendChild(el('span', `dot ${a.status}`));
       item.appendChild(el('span', 'name', a.name));
       const rm = el('button', 'icon rm', '×');
@@ -82,12 +85,26 @@ function showCreate(ws) {
   $('prompt').focus();
 }
 
-function select(id) {
-  state.active = id;
-  const a = state.agents.get(id);
-  showView('chat');
+const branchLabel = (a) => a.branch || 'creating worktree…';
+
+function setTitle(a) {
   $('title').querySelector('b').textContent = a.name;
-  $('title').querySelector('small').textContent = `${basename(a.workspace)} · ${a.branch}`;
+  $('title').querySelector('small').textContent = `${basename(a.workspace)} · ${branchLabel(a)}`;
+  // Same labels as the create form's dropdowns.
+  const label = (id, v) => $(id).querySelector(`option[value="${v || ''}"]`)?.textContent ?? v;
+  $('agentModel').textContent = `${label('model', a.model)} · ${label('effort', a.effort)}`;
+}
+
+async function select(id) {
+  const a = state.agents.get(id);
+  if (!a.lines) {
+    // Restored after a restart: replay the saved transcript once.
+    a.lines = [];
+    for (const evt of await window.agents.history(id)) handleEvent(a, evt);
+  }
+  state.active = id;
+  showView('chat');
+  setTitle(a);
   const sel = $('runSel');
   sel.innerHTML = '';
   for (const r of a.runs) {
@@ -96,6 +113,7 @@ function select(id) {
     sel.appendChild(o);
   }
   sel.value = a.runChoice || a.runs.find((r) => r.default)?.name || a.runs[0]?.name || '';
+  syncGo();
   showTab(state.tab);
 }
 
@@ -110,8 +128,8 @@ function showTab(tab) {
   $('runSel').hidden = $('runBtn').hidden = !a.runs.length;
   $('runBtn').textContent = a.running.run ? '■ Stop' : '▶ Run';
   logEl.innerHTML = '';
-  a.logs[tab].forEach(appendLineEl);
-  if (!a.logs[tab].length && tab !== 'chat')
+  tabLines(a, tab).forEach(appendLineEl);
+  if (!tabLines(a, tab).length && tab !== 'chat')
     appendLineEl({ cls: 'meta', text: a.configFile ? `Nothing yet. Scripts come from ${a.configFile}.`
       : 'No scripts. Add .orchard/settings.toml (or .conductor/settings.toml) to the repo.' });
   if (tab === 'chat') input.focus();
@@ -127,7 +145,9 @@ $('runBtn').onclick = () => {
 
 // Turn one stream-json event into readable lines.
 function handleEvent(agent, evt) {
-  if (evt.type === 'assistant') {
+  if (evt.type === 'you') {
+    addLine(agent, 'you', '› ' + evt.text); // only in saved history; live messages are added on send
+  } else if (evt.type === 'assistant') {
     for (const block of evt.message?.content ?? []) {
       if (block.type === 'text') addLine(agent, 'assistant', block.text);
       else if (block.type === 'tool_use')
@@ -225,7 +245,7 @@ $('createForm').onsubmit = async (e) => {
     const info = await window.agents.create({ workspace: $('ws').value, prompt, model: $('model').value, effort: $('effort').value });
     if (info.error) { $('err').textContent = info.error; return; }
     $('prompt').value = '';
-    const agent = { ...info, logs: { chat: [], setup: [], run: [] }, running: {} };
+    const agent = { ...info, lines: [], logs: { setup: [], run: [] }, running: {} };
     state.tab = 'chat';
     state.agents.set(info.id, agent);
     addLine(agent, 'you', '› ' + prompt);
@@ -236,7 +256,7 @@ $('createForm').onsubmit = async (e) => {
 };
 
 async function remove(agent) {
-  if (!confirm(`Remove agent "${agent.name}" and its worktree? The branch ${agent.branch} is kept.`)) return;
+  if (!confirm(`Remove agent "${agent.name}" and its worktree?${agent.branch ? ` The branch ${agent.branch} is kept.` : ''}`)) return;
   const res = await window.agents.remove(agent.id);
   if (!res.ok) { addLine(agent, 'meta', `Could not remove the worktree: ${res.error}`); return; }
   state.agents.delete(agent.id);
@@ -244,20 +264,36 @@ async function remove(agent) {
   else renderList();
 }
 
+// Enter sends, Shift+Enter adds a new line, like the create form.
+input.onkeydown = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('form').requestSubmit(); }
+};
+const syncGo = () => { $('go').disabled = !input.value.trim(); };
+input.oninput = syncGo;
+
 $('form').onsubmit = async (e) => {
   e.preventDefault();
   const text = input.value.trim();
   const agent = state.agents.get(state.active);
   if (!text || !agent) return;
+  if (agent.status === 'setup') { addLine(agent, 'meta', 'Still setting up the worktree, try again in a moment.'); return; }
   input.value = '';
+  syncGo();
   addLine(agent, 'you', '› ' + text);
   const ok = await window.agents.send(agent.id, text);
-  if (!ok) addLine(agent, 'meta', 'The agent is no longer running.');
+  if (!ok) addLine(agent, 'meta', 'Could not start the agent.');
 };
 
 window.agents.onEvent((id, evt) => {
   const a = state.agents.get(id);
-  if (a) handleEvent(a, evt);
+  if (a?.lines) handleEvent(a, evt); // not loaded yet: the history will include it
+});
+window.agents.onInfo((info) => {
+  const a = state.agents.get(info.id);
+  if (!a) return;
+  Object.assign(a, info);
+  if (state.active === a.id) select(a.id); // the run scripts are known once the worktree exists
+  renderList();
 });
 window.agents.onScript((id, kind, line) => {
   const a = state.agents.get(id);
@@ -277,7 +313,8 @@ window.agents.onStatus((id, status) => {
   if (a) { a.status = status; renderList(); }
 });
 
-window.agents.workspaces().then((ws) => {
+Promise.all([window.agents.workspaces(), window.agents.list()]).then(([ws, list]) => {
   state.workspaces = ws;
+  for (const info of list) state.agents.set(info.id, { ...info, lines: null, logs: { setup: [], run: [] }, running: {} }); // history loads on select
   showCreate();
 });

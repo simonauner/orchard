@@ -47,8 +47,21 @@ class Agent extends EventEmitter {
     this.emit('status', status);
   }
 
+  get running() {
+    const p = this.proc;
+    return !!p && !p.killed && p.exitCode === null && p.signalCode === null;
+  }
+
+  // A restarted agent continues its earlier conversation.
   start() {
-    this.proc = spawn(this.command, this.args, {
+    let args = this.args;
+    if (this.sessionId) {
+      // Read back from disk and passed as an argument, so it must not look like a flag.
+      if (!/^[A-Za-z0-9][\w-]*$/.test(this.sessionId)) throw new Error(`Invalid session id: ${this.sessionId}`);
+      args = [...args, '--resume', this.sessionId];
+    }
+    this.setStatus('idle');
+    this.proc = spawn(this.command, args, {
       cwd: this.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
