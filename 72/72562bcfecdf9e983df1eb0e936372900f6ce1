@@ -1,0 +1,19 @@
+.nvmrc
+  s_a233f4c659491d::t_73115c8d4d6f83 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7272562bcfecdf9e983df1eb0e936372900f6ce1",
+  "prompts": {},
+  "sessions": {
+    "s_a233f4c659491d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b7485fe9-72c7-49db-949a-317261e75169",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
