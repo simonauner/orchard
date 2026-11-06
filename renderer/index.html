@@ -24,7 +24,7 @@
     .item:hover .rm, .item.active .rm { visibility: visible; }
     .hint { padding: 6px 12px; color: var(--muted); font-size: 12px; }
     .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #999; }
-    .dot.working { background: #e0a800; } .dot.done { background: #2e9e4f; }
+    .dot.working, .dot.setup { background: #e0a800; } .dot.done { background: #2e9e4f; }
     .dot.error, .dot.stopped { background: #d33; }
     main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     #createView { margin: 12vh auto 0; width: min(600px, 100% - 32px); }
@@ -60,8 +60,11 @@
     .you { color: var(--muted); }
     .tool { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
     .meta { color: var(--muted); font-size: 12px; }
-    #form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--bd); }
-    #form input { flex: 1; padding: 8px; }
+    #form { margin: 0 16px 16px; }
+    #form textarea { min-height: 60px; max-height: 40vh; resize: none; }
+    #agentModel { color: var(--muted); font-size: 13px; padding: 4px; }
+    #go { width: 32px; height: 32px; border-radius: 8px; border: 0; background: #eee; color: #111; font-size: 16px; cursor: pointer; }
+    #go:disabled { opacity: .4; cursor: default; }
   </style>
 </head>
 <body>
@@ -125,9 +128,13 @@
     <section id="chatView" hidden>
       <div id="title"><b></b><small></small></div>
       <div id="log"></div>
-      <form id="form">
-        <input id="text" placeholder="Message the agent…" aria-label="Message the agent" autocomplete="off" />
-        <button id="go">Send</button>
+      <form class="card" id="form">
+        <textarea id="text" placeholder="Message the agent…" aria-label="Message the agent"></textarea>
+        <div class="row">
+          <span id="agentModel"></span>
+          <span class="spacer"></span>
+          <button id="go" title="Send" aria-label="Send">↑</button>
+        </div>
       </form>
     </section>
   </main>

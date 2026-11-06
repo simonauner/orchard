@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
-const { Agent, checkExecutable, claudeStatus, createWorktree, removeWorktree, repoRoot } = require('./agent');
+const { Agent, checkExecutable, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify } = require('./agent');
 
 // The native Claude Code installer puts `claude` in ~/.local/bin, which shells and GUI launches often lack.
 const localBin = path.join(require('node:os').homedir(), '.local', 'bin');
@@ -52,7 +52,7 @@ function toUi(...args) {
 }
 
 function publicInfo(a) {
-  return { id: a.id, status: a.status, name: a.task, branch: a.worktree.branch, workspace: a.worktree.root };
+  return { id: a.id, status: a.status, name: a.task, branch: a.worktree.branch, workspace: a.worktree.root, model: a.model, effort: a.effort };
 }
 
 ipcMain.handle('workspaces:list', () => workspaces);
@@ -98,16 +98,19 @@ ipcMain.handle('agent:create', async (_e, { workspace, prompt, model, effort } =
   if (!workspaces.includes(workspace)) return { error: 'Pick a workspace first.' };
   if (!prompt) return { error: 'Describe what you want to work on.' };
 
+  if (!slugify(prompt.split('\n')[0])) return { error: 'The task must contain letters or digits.' };
+
   let agent;
   try {
     // Validates model/effort before anything is created on disk.
     agent = new Agent({ id: nextId++, cwd: workspace, command: claudeCommand(), model: model || null, effort: effort || null });
-    agent.worktree = await createWorktree(workspace, prompt.split('\n')[0]);
   } catch (e) {
     return { error: e.message };
   }
-  agent.cwd = agent.worktree.dir;
   agent.task = prompt.split('\n')[0].slice(0, 60);
+  Object.assign(agent, { model: model || null, effort: effort || null });
+  agent.worktree = { root: workspace, branch: null }; // filled in by setup()
+  agent.status = 'setup';
   agents.set(agent.id, agent);
 
   agent.on('event', (event) => toUi('agent:event', agent.id, event));
@@ -118,17 +121,34 @@ ipcMain.handle('agent:create', async (_e, { workspace, prompt, model, effort } =
     }
   });
 
-  agent.start();
-  agent.send(prompt);
+  // The UI shows the agent right away; the worktree and claude start behind it.
+  setup(agent, prompt);
   return publicInfo(agent);
 });
+
+async function setup(agent, prompt) {
+  let worktree;
+  try {
+    worktree = await createWorktree(agent.worktree.root, prompt.split('\n')[0]);
+  } catch (e) {
+    agent.emit('event', { type: 'stderr', text: `Could not create the worktree: ${e.message}` });
+    agent.setStatus('error');
+    return;
+  }
+  agent.worktree = worktree;
+  if (!agents.has(agent.id)) return removeWorktree(worktree).catch(() => {}); // removed while setting up
+  agent.cwd = worktree.dir;
+  toUi('agent:info', publicInfo(agent));
+  agent.start();
+  agent.send(prompt);
+}
 
 ipcMain.handle('agent:remove', async (_e, id) => {
   const agent = agents.get(id);
   if (!agent) return { ok: true };
   await agent.stop();
   try {
-    await removeWorktree(agent.worktree);
+    if (agent.worktree.dir) await removeWorktree(agent.worktree);
   } catch (e) {
     return { ok: false, error: e.message };
   }
