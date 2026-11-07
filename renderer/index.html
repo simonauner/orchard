@@ -131,6 +131,10 @@
     .fold[open] > summary { margin-bottom: 12px; }
     .fold.live > summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .fold > .msg { padding-left: 14px; border-left: 2px solid var(--bd); margin-bottom: 0; padding-bottom: 12px; }
+    #busy { margin: 0 auto 8px; width: calc(100% - 32px); max-width: 800px; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+    #busy[hidden] { display: none; }
+    #busy::before { content: ''; width: 12px; height: 12px; border: 2px solid var(--bd); border-top-color: var(--muted); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     #queue { margin: 0 auto 8px; width: calc(100% - 32px); max-width: 800px; }
     #queue[hidden] { display: none; }
     .queued { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px dashed var(--bd); border-radius: 6px; margin-bottom: 4px; color: var(--muted); font-size: 13px; }
@@ -216,6 +220,7 @@
       <div id="chatCol">
       <div id="title"><b></b><small></small></div>
       <div id="log"></div>
+      <div id="busy" role="status" hidden>Working…</div>
       <div id="queue" hidden></div>
       <form class="card" id="form">
         <textarea id="text" placeholder="Message the agent…" aria-label="Message the agent"></textarea>
