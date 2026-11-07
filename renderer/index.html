@@ -141,6 +141,11 @@
     #agentModel { color: var(--muted); font-size: 13px; padding: 4px; }
     #go { width: 32px; height: 32px; border-radius: 8px; border: 0; background: #eee; color: #111; font-size: 16px; cursor: pointer; }
     #go:disabled { opacity: .4; cursor: default; }
+    .card.dropping { outline: 2px dashed var(--muted); outline-offset: -2px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chips:empty { display: none; }
+    .chip { display: flex; align-items: center; gap: 4px; padding: 2px 4px 2px 2px; border: 1px solid var(--bd); border-radius: 6px; font-size: 12px; color: var(--muted); }
+    .chip img { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -158,6 +163,7 @@
           <select id="ws" aria-label="Workspace"></select>
         </div>
         <textarea id="prompt" placeholder="What do you want to work on?" aria-label="What do you want to work on?"></textarea>
+        <div class="chips" id="promptFiles"></div>
         <div class="row">
           <select id="model" aria-label="Model">
             <option value="">Default model</option>
@@ -209,6 +215,7 @@
       <div id="queue" hidden></div>
       <form class="card" id="form">
         <textarea id="text" placeholder="Message the agent…" aria-label="Message the agent"></textarea>
+        <div class="chips" id="textFiles"></div>
         <div class="row">
           <span id="agentModel"></span>
           <span class="spacer"></span>

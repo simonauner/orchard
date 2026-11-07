@@ -10,6 +10,8 @@ const readline = require('node:readline');
 // Allowlists: values become CLI arguments, so nothing else may pass ("--foo" would be read as a flag).
 const MODELS = ['fable', 'opus', 'sonnet', 'haiku'];
 const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+// What the API accepts as image blocks.
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
 class Agent extends EventEmitter {
   constructor({ id, cwd, command = 'claude', args = null, model = null, effort = null }) {
@@ -108,9 +110,16 @@ class Agent extends EventEmitter {
     this.proc.stdin.write(JSON.stringify(msg) + '\n');
   }
 
-  send(text) {
+  // images: [{ media_type, data (base64) }], sent as image blocks after the text.
+  send(text, images = []) {
     if (!this.proc || this.proc.killed || this.status === 'stopped') return false;
-    this.write({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } });
+    for (const i of images)
+      if (!IMAGE_TYPES.includes(i?.media_type) || typeof i.data !== 'string') throw new Error('Unsupported image');
+    const content = [
+      ...(text ? [{ type: 'text', text }] : []),
+      ...images.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.media_type, data: i.data } })),
+    ];
+    this.write({ type: 'user', message: { role: 'user', content } });
     this.setStatus('working');
     return true;
   }
@@ -246,5 +255,5 @@ async function removeWorktree({ root, dir }, force = false) {
 }
 
 module.exports = {
-  Agent, MODELS, EFFORTS, checkExecutable, claudeDefaults, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify,
+  Agent, MODELS, EFFORTS, IMAGE_TYPES, checkExecutable, claudeDefaults, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify,
 };

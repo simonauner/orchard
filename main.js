@@ -168,7 +168,7 @@ ipcMain.handle('workspaces:add', async () => {
   }
 });
 
-ipcMain.handle('agent:create', async (_e, { workspace, prompt, model, effort } = {}) => {
+ipcMain.handle('agent:create', async (_e, { workspace, prompt, model, effort, images } = {}) => {
   prompt = String(prompt ?? '').trim();
   if (!workspaces.includes(workspace)) return { error: 'Pick a workspace first.' };
   if (!prompt) return { error: 'Describe what you want to work on.' };
@@ -190,11 +190,11 @@ ipcMain.handle('agent:create', async (_e, { workspace, prompt, model, effort } =
   track(agent);
 
   // The UI shows the agent right away; the worktree and claude start behind it.
-  setup(agent, prompt);
+  setup(agent, prompt, Array.isArray(images) ? images : []);
   return publicInfo(agent);
 });
 
-async function setup(agent, prompt) {
+async function setup(agent, prompt, images) {
   let worktree;
   try {
     worktree = await createWorktree(agent.worktree.root, prompt.split('\n')[0]);
@@ -209,7 +209,7 @@ async function setup(agent, prompt) {
   const configError = loadScripts(agent);
   saveAgents();
   toUi('agent:info', publicInfo(agent));
-  send(agent, prompt);
+  send(agent, prompt, images);
   // Like Conductor, setup runs next to the agent rather than before it.
   if (configError) toUi('agent:script', agent.id, 'setup', configError);
   else if (agent.config?.setup) startScript(agent, 'setup', agent.config.setup);
@@ -226,15 +226,17 @@ function loadScripts(agent) {
 }
 
 // Starts claude again (resuming its session) if it is not running, e.g. after a restart.
-function send(agent, text) {
+function send(agent, text, images = []) {
   if (!agent.worktree.dir) return false; // still setting up
   try {
     if (!agent.running) agent.start();
+    const ok = agent.send(text, images);
+    // Only the names go in the log; the image data would bloat it.
+    if (ok) log(agent, { type: 'you', text, images: images.map((i) => String(i.name ?? 'image')) });
+    return ok;
   } catch (e) {
     return false;
   }
-  log(agent, { type: 'you', text });
-  return agent.send(text);
 }
 
 // Agents survive restarts: agents.json has what is needed to resume, logs/<id>.jsonl the transcript.
@@ -311,9 +313,9 @@ ipcMain.handle('agent:history', (_e, id) => {
     return []; // no log yet
   }
 });
-ipcMain.handle('agent:send', (_e, id, text) => {
+ipcMain.handle('agent:send', (_e, id, text, images) => {
   const agent = agents.get(id);
-  return agent ? send(agent, String(text)) : false;
+  return agent ? send(agent, String(text), Array.isArray(images) ? images : []) : false;
 });
 ipcMain.handle('agent:respond', (_e, id, requestId, answer) => {
   const a = answer ?? {};

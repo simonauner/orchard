@@ -106,3 +106,13 @@ ask(8, 'Bash', { allow: true }).then(({ reply, statuses }) => {
   assert.deepStrictEqual(reply.updatedInput.answers, { 'Colour?': 'blue' });
   console.log('OK: permission requests and questions');
 });
+
+// Images go out as image blocks; anything but an allowed image type is refused.
+const img = new Agent({ id: 7, cwd: process.cwd(), command: process.execPath, args: [path.join(__dirname, 'fake-claude.js')] });
+img.start();
+const written = [];
+img.proc.stdin.write = (line) => written.push(JSON.parse(line));
+assert.throws(() => img.send('x', [{ media_type: 'text/html', data: 'AA==' }]), /Unsupported image/);
+assert.strictEqual(img.send('look', [{ media_type: 'image/png', data: 'AA==' }]), true);
+assert.deepStrictEqual(written[0].message.content.map((b) => b.type), ['text', 'image']);
+img.stop().then(() => console.log('OK: image blocks'));

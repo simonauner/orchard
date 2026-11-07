@@ -511,7 +511,7 @@ function handleEvent(agent, evt) {
     agent.liveModel = evt.model;
     if (state.active === agent.id) setTitle(agent);
   } else if (evt.type === 'you') {
-    addLine(agent, 'you', evt.text); // only in saved history; live messages are added on send
+    addLine(agent, 'you', withImages(evt.text, evt.images)); // only in saved history; live messages are added on send
   } else if (evt.type === 'assistant') {
     for (const block of evt.message?.content ?? []) {
       if (block.type === 'text') addTurnLine(agent, 'assistant', block.text);
@@ -608,6 +608,63 @@ $('prompt').onkeydown = (e) => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('createForm').requestSubmit(); }
 };
 
+// Drop images (sent as image blocks) or text files like .txt/.json (pasted into the message) on a form.
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+const TEXT_EXT = /\.(txt|json|md|csv|log|ya?ml|xml)$/i;
+const MAX_IMAGE = 3.75 * 1024 * 1024; // the API caps an image at 5 MB of base64
+const MAX_TEXT = 1024 * 1024;
+const pending = { promptFiles: [], textFiles: [] }; // images waiting to be sent, per form
+
+// Electron would otherwise open a file dropped anywhere in the window.
+for (const t of ['dragover', 'drop']) document.addEventListener(t, (e) => e.preventDefault());
+
+function renderChips(id) {
+  const box = $(id);
+  box.innerHTML = '';
+  pending[id].forEach((img, i) => {
+    const chip = el('span', 'chip');
+    const thumb = el('img');
+    thumb.src = `data:${img.media_type};base64,${img.data}`;
+    thumb.alt = '';
+    const rm = el('button', 'icon', '×');
+    rm.type = 'button';
+    rm.title = rm.ariaLabel = `Remove ${img.name}`;
+    rm.onclick = () => { pending[id].splice(i, 1); renderChips(id); syncGo(); };
+    chip.append(thumb, el('span', null, img.name), rm);
+    box.appendChild(chip);
+  });
+}
+
+function insertText(area, text) {
+  const at = area.selectionEnd ?? area.value.length;
+  area.value = area.value.slice(0, at) + text + area.value.slice(at);
+  area.selectionStart = area.selectionEnd = at + text.length;
+}
+
+function acceptDrops(form, area, chipsId) {
+  form.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) form.classList.add('dropping'); });
+  form.addEventListener('dragleave', (e) => { if (!form.contains(e.relatedTarget)) form.classList.remove('dropping'); });
+  form.addEventListener('drop', async (e) => {
+    form.classList.remove('dropping');
+    const skipped = [];
+    for (const file of e.dataTransfer.files) {
+      if (IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE) {
+        const url = await new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = fail; r.readAsDataURL(file); });
+        pending[chipsId].push({ name: file.name, media_type: file.type, data: url.slice(url.indexOf(',') + 1) });
+      } else if ((file.type.startsWith('text/') || file.type === 'application/json' || TEXT_EXT.test(file.name)) && file.size <= MAX_TEXT) {
+        insertText(area, `${area.value && !area.value.endsWith('\n') ? '\n' : ''}${file.name}:\n\`\`\`\n${(await file.text()).trimEnd()}\n\`\`\`\n`);
+      } else skipped.push(file.name);
+    }
+    renderChips(chipsId);
+    syncGo();
+    area.focus();
+    if (skipped.length) alert(`Not added (only images up to 3.75 MB and text files up to 1 MB):\n\n${skipped.join('\n')}`);
+  });
+}
+
+// The message as shown in the log: its text plus the names of attached images.
+const withImages = (text, names = []) => [text, ...names.map((n) => `📎 ${n}`)].filter(Boolean).join('\n');
+
 $('createForm').onsubmit = async (e) => {
   e.preventDefault();
   const btn = $('createBtn');
@@ -616,13 +673,16 @@ $('createForm').onsubmit = async (e) => {
   btn.disabled = true; // worktree add takes a moment; avoid double-creating
   const prompt = $('prompt').value.trim();
   try {
-    const info = await window.agents.create({ workspace: $('ws').value, prompt, model: $('model').value, effort: $('effort').value });
+    const images = pending.promptFiles;
+    const info = await window.agents.create({ workspace: $('ws').value, prompt, model: $('model').value, effort: $('effort').value, images });
     if (info.error) { $('err').textContent = info.error; return; }
     $('prompt').value = '';
+    pending.promptFiles = [];
+    renderChips('promptFiles');
     const agent = { ...info, lines: [], logs: { setup: [], run: [] }, running: {} };
     state.tab = 'setup'; // setup starts next to the agent
     state.agents.set(info.id, agent);
-    addLine(agent, 'you', prompt);
+    addLine(agent, 'you', withImages(prompt, images.map((i) => i.name)));
     select(info.id);
   } finally {
     btn.disabled = false;
@@ -644,24 +704,29 @@ async function remove(agent) {
 input.onkeydown = (e) => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('form').requestSubmit(); }
 };
-const syncGo = () => { $('go').disabled = !input.value.trim(); };
+function syncGo() { $('go').disabled = !input.value.trim() && !pending.textFiles.length; }
 input.oninput = syncGo;
+acceptDrops($('createForm'), $('prompt'), 'promptFiles');
+acceptDrops($('form'), input, 'textFiles');
 
 $('form').onsubmit = async (e) => {
   e.preventDefault();
   const text = input.value.trim();
+  const images = pending.textFiles;
   const agent = state.agents.get(state.active);
-  if (!text || !agent) return;
+  if ((!text && !images.length) || !agent) return;
   input.value = '';
+  pending.textFiles = [];
+  renderChips('textFiles');
   syncGo();
-  if (['working', 'waiting', 'setup'].includes(agent.status)) { (agent.queue ??= []).push(text); renderQueue(agent); }
-  else sendNow(agent, text);
+  if (['working', 'waiting', 'setup'].includes(agent.status)) { (agent.queue ??= []).push({ text, images }); renderQueue(agent); }
+  else sendNow(agent, { text, images });
 };
 
-async function sendNow(agent, text) {
+async function sendNow(agent, { text, images }) {
   agent.status = 'working'; // before main's status event arrives, so a quick second message is queued too
-  addLine(agent, 'you', text);
-  const ok = await window.agents.send(agent.id, text);
+  addLine(agent, 'you', withImages(text, images.map((i) => i.name)));
+  const ok = await window.agents.send(agent.id, text, images);
   if (!ok) addLine(agent, 'meta', 'Could not start the agent.');
 }
 
@@ -670,9 +735,9 @@ function renderQueue(a) {
   if (state.active !== a.id) return;
   const box = $('queue');
   box.innerHTML = '';
-  (a.queue ?? []).forEach((text, i) => {
+  (a.queue ?? []).forEach(({ text, images }, i) => {
     const row = el('div', 'queued');
-    row.appendChild(el('span', 'name', text));
+    row.appendChild(el('span', 'name', withImages(text, images.map((img) => img.name))));
     const rm = el('button', 'icon', '×');
     rm.title = rm.ariaLabel = 'Remove queued message';
     rm.onclick = () => { a.queue.splice(i, 1); renderQueue(a); };

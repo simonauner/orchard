@@ -15,7 +15,7 @@ contextBridge.exposeInMainWorld('agents', {
   history: (id) => ipcRenderer.invoke('agent:history', id),
   create: (opts) => ipcRenderer.invoke('agent:create', opts),
   remove: (id, force) => ipcRenderer.invoke('agent:remove', id, force),
-  send: (id, text) => ipcRenderer.invoke('agent:send', id, text),
+  send: (id, text, images) => ipcRenderer.invoke('agent:send', id, text, images),
   respond: (id, requestId, answer) => ipcRenderer.invoke('agent:respond', id, requestId, answer),
   stop: (id) => ipcRenderer.invoke('agent:stop', id),
   run: (id, name) => ipcRenderer.invoke('agent:run', id, name),
