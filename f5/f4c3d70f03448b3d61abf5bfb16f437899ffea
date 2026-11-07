@@ -1,0 +1,33 @@
+renderer/renderer.js
+  s_6e6cda67083c4a::t_609a56011a871e 617,624,626-627
+  s_6e6cda67083c4a::t_1328f8bde22ea6 578-612
+test/settings.test.js
+  s_6e6cda67083c4a::t_609a56011a871e 4,54-69
+preload.js
+  s_6e6cda67083c4a::t_c8a237bf291b14 12-13
+agent.js
+  s_6e6cda67083c4a::t_c8a237bf291b14 186-202,274
+renderer/index.html
+  s_6e6cda67083c4a::t_c8a237bf291b14 83-86,208-216
+  s_6e6cda67083c4a::t_61ba38fef34f92 217
+main.js
+  s_6e6cda67083c4a::t_c8a237bf291b14 4,6,137-138
+gitinfo.js
+  s_6e6cda67083c4a::t_c8a237bf291b14 87-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f5f4c3d70f03448b3d61abf5bfb16f437899ffea",
+  "prompts": {},
+  "sessions": {
+    "s_6e6cda67083c4a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd5bfd2a-3795-4a4b-8a6f-a2f090bfc5a9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
