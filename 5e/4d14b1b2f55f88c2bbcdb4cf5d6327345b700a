@@ -1,0 +1,21 @@
+renderer/renderer.js
+  s_a2619d5cbc7252::t_be7137cee8baa1 451,462
+renderer/index.html
+  s_a2619d5cbc7252::t_be7137cee8baa1 67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5e4d14b1b2f55f88c2bbcdb4cf5d6327345b700a",
+  "prompts": {},
+  "sessions": {
+    "s_a2619d5cbc7252": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7c3861bb-da65-4521-b7ec-171481a0a403",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
