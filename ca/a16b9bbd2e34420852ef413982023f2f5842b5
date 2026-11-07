@@ -4,12 +4,15 @@ preload.js
   s_e97deab60471a3::t_1d6a8edb4b62da 18
 test/agent.test.js
   s_e97deab60471a3::t_b9c90b88df53d0 75,110-118
+  s_e97deab60471a3::t_13202bbf296f20 109
 main.js
   s_e97deab60471a3::t_1d6a8edb4b62da 171,193,197,212,229,233-236,316,318
 renderer/renderer.js
   s_e97deab60471a3::t_9abe7513c3cd29 514,611-667,676-677,680-681,685,707,709-710,715,717,719-720,723,726,728-729,738,740
+  s_e97deab60471a3::t_16f24ca26785a5 722
 agent.js
   s_e97deab60471a3::t_1d6a8edb4b62da 13-14,113-114,116-121,258
+  s_e97deab60471a3::t_13202bbf296f20 122
 ---
 {
   "schema_version": "authorship/3.0.0",
