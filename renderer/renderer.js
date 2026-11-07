@@ -359,6 +359,7 @@ async function select(id) {
   syncGo();
   renderLog(a);
   renderQueue(a);
+  syncBusy(a);
   showTab(state.tab);
   renderGit(a);
   refreshGit(id);
@@ -725,9 +726,15 @@ $('form').onsubmit = async (e) => {
 
 async function sendNow(agent, { text, images }) {
   agent.status = 'working'; // before main's status event arrives, so a quick second message is queued too
+  syncBusy(agent);
   addLine(agent, 'you', withImages(text, images.map((i) => i.name)));
   const ok = await window.agents.send(agent.id, text, images);
   if (!ok) addLine(agent, 'meta', 'Could not start the agent.');
+}
+
+// Shows the agent is busy, so a long tool call doesn't look like the app hung. 'waiting' is on the user.
+function syncBusy(a) {
+  if (state.active === a.id) $('busy').hidden = !['working', 'setup'].includes(a.status);
 }
 
 // Messages sent while the agent works wait here and go out one per finished turn.
@@ -779,6 +786,7 @@ window.agents.onStatus((id, status) => {
   const a = state.agents.get(id);
   if (!a) return;
   a.status = status;
+  syncBusy(a);
   if (status === 'done' && a.queue?.length) { sendNow(a, a.queue.shift()); renderQueue(a); }
   renderList();
   if (status === 'done') refreshGit(id); // the agent may have committed or opened a PR
