@@ -641,73 +641,48 @@ function insertText(area, text) {
   area.selectionStart = area.selectionEnd = at + text.length;
 }
 
-function acceptDrops(form, area, chipsId) {
-  form.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) form.classList.add('dropping'); });
-  form.addEventListener('dragleave', (e) => { if (!form.contains(e.relatedTarget)) form.classList.remove('dropping'); });
-  form.addEventListener('drop', async (e) => {
-    form.classList.remove('dropping');
-    const skipped = [];
-    for (const file of e.dataTransfer.files) {
-      if (IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE) {
-        const url = await new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = fail; r.readAsDataURL(file); });
-        pending[chipsId].push({ name: file.name, media_type: file.type, data: url.slice(url.indexOf(',') + 1) });
-      } else if ((file.type.startsWith('text/') || file.type === 'application/json' || TEXT_EXT.test(file.name)) && file.size <= MAX_TEXT) {
-        insertText(area, `${area.value && !area.value.endsWith('\n') ? '\n' : ''}${file.name}:\n\`\`\`\n${(await file.text()).trimEnd()}\n\`\`\`\n`);
-      } else skipped.push(file.name);
-    }
-    renderChips(chipsId);
-    syncGo();
-    area.focus();
-    if (skipped.length) alert(`Not added (only images up to 3.75 MB and text files up to 1 MB):\n\n${skipped.join('\n')}`);
-  });
-}
-
-// The message as shown in the log: its text plus the names of attached images.
-const withImages = (text, names = []) => [text, ...names.map((n) => `📎 ${n}`)].filter(Boolean).join('\n');
-
-$('createForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const btn = $('createBtn');
-  if (btn.disabled) return;
-  $('err').textContent = '';
-  btn.disabled = true; // worktree add takes a moment; avoid double-creating
-  const prompt = $('prompt').value.trim();
-  try {
-    const images = pending.promptFiles;
-    const info = await window.agents.create({ workspace: $('ws').value, prompt, model: $('model').value, effort: $('effort').value, images });
-    if (info.error) { $('err').textContent = info.error; return; }
-    $('prompt').value = '';
-    pending.promptFiles = [];
-    renderChips('promptFiles');
-    const agent = { ...info, lines: [], logs: { setup: [], run: [] }, running: {} };
-    state.tab = 'setup'; // setup starts next to the agent
-    state.agents.set(info.id, agent);
-    addLine(agent, 'you', withImages(prompt, images.map((i) => i.name)));
-    select(info.id);
-  } finally {
-    btn.disabled = false;
+async function addFiles(files, area, chipsId) {
+  const skipped = [];
+  for (const file of files) {
+    if (IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE) {
+      const url = await new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = fail; r.readAsDataURL(file); });
+      pending[chipsId].push({ name: file.name, media_type: file.type, data: url.slice(url.indexOf(',') + 1) });
+    } else if ((file.type.startsWith('text/') || file.type === 'application/json' || TEXT_EXT.test(file.name)) && file.size <= MAX_TEXT) {
+      insertText(area, `${area.value && !area.value.endsWith('\n') ? '\n' : ''}${file.name}:\n\`\`\`\n${(await file.text()).trimEnd()}\n\`\`\`\n`);
+    } else skipped.push(file.name);
   }
-};
-
-async function remove(agent) {
-  if (!confirm(`Archive "${agent.name}"? Its archive script runs and the worktree is removed.${agent.branch ? ` The branch ${agent.branch} is kept.` : ''}`)) return;
-  let res = await window.agents.remove(agent.id);
-  if (res.dirty?.length && confirm(`The worktree has uncommitted or untracked files:\n\n${res.dirty.slice(0, 20).join('\n')}${res.dirty.length > 20 ? `\n…and ${res.dirty.length - 20} more` : ''}\n\nDelete them and archive anyway?`))
-    res = await window.agents.remove(agent.id, true);
-  if (!res.ok) { addLine(agent, 'meta', `Could not archive: ${res.error}`); return; }
-  state.agents.delete(agent.id);
-  if (state.active === agent.id) showCreate(agent.workspace);
-  else renderList();
+  renderChips(chipsId);
+  syncGo();
+  area.focus();
+  if (skipped.length) alert(`Not added (only images up to 3.75 MB and text files up to 1 MB):\n\n${skipped.join('\n')}`);
 }
 
-// Enter sends, Shift+Enter adds a new line, like the create form.
-input.onkeydown = (e) => {
-  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('form').requestSubmit(); }
-};
+// Files can be dropped anywhere on the middle panel; the overlay shows that while files are dragged over the window.
+const dropZone = () => (state.view === 'chat' ? $('chatCol') : state.view === 'create' ? document.querySelector('main') : null);
+const overlay = $('dropOverlay');
+function inZone(e) {
+  const r = dropZone()?.getBoundingClientRect();
+  return !!r && e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom;
+}
+document.addEventListener('dragover', (e) => {
+  const zone = dropZone();
+  if (!zone || !e.dataTransfer.types.includes('Files')) return;
+  const r = zone.getBoundingClientRect();
+  Object.assign(overlay.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  overlay.hidden = false;
+  overlay.classList.toggle('over', inZone(e));
+  e.dataTransfer.dropEffect = inZone(e) ? 'copy' : 'none';
+});
+document.addEventListener('dragleave', (e) => { if (!e.relatedTarget) overlay.hidden = true; }); // left the window
+document.addEventListener('drop', (e) => {
+  overlay.hidden = true;
+  if (!inZone(e)) return;
+  if (state.view === 'chat') addFiles(e.dataTransfer.files, input, 'textFiles');
+  else addFiles(e.dataTransfer.files, $('prompt'), 'promptFiles');
+});
+
 function syncGo() { $('go').disabled = !input.value.trim() && !pending.textFiles.length; }
 input.oninput = syncGo;
-acceptDrops($('createForm'), $('prompt'), 'promptFiles');
-acceptDrops($('form'), input, 'textFiles');
 
 $('form').onsubmit = async (e) => {
   e.preventDefault();

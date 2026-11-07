@@ -141,7 +141,10 @@
     #agentModel { color: var(--muted); font-size: 13px; padding: 4px; }
     #go { width: 32px; height: 32px; border-radius: 8px; border: 0; background: #eee; color: #111; font-size: 16px; cursor: pointer; }
     #go:disabled { opacity: .4; cursor: default; }
-    .card.dropping { outline: 2px dashed var(--muted); outline-offset: -2px; }
+    #dropOverlay { position: fixed; z-index: 20; pointer-events: none; padding: 24px; display: flex; }
+    #dropOverlay[hidden] { display: none; }
+    #dropOverlay div { flex: 1; display: flex; align-items: center; justify-content: center; border: 3px dashed var(--muted); border-radius: 16px; background: #8881; color: var(--muted); font-size: 18px; transition: background .15s, border-color .15s, color .15s; }
+    #dropOverlay.over div { border-color: #4a8cff; background: #4a8cff22; color: #4a8cff; }
     .chips { display: flex; flex-wrap: wrap; gap: 6px; }
     .chips:empty { display: none; }
     .chip { display: flex; align-items: center; gap: 4px; padding: 2px 4px 2px 2px; border: 1px solid var(--bd); border-radius: 6px; font-size: 12px; color: var(--muted); }
@@ -157,6 +160,7 @@
     <div class="resizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar"></div>
   </nav>
   <main>
+    <div id="dropOverlay" hidden><div>Drop images or text files</div></div>
     <section id="createView">
       <form class="card" id="createForm">
         <div class="row">
