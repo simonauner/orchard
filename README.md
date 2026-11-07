@@ -22,8 +22,9 @@ describe the task and press Enter (Shift+Enter for a new line). The app runs
 line of the prompt (a taken slug gets `-2`, `-3`, …), starts claude there and sends the prompt as
 the first message. Model and effort are passed as `--model`/`--effort`; "Default" leaves them out.
 
-Claude runs with `--permission-mode acceptEdits`: file edits inside the worktree are approved
-automatically, tools that need approval are denied and shown as "⛔ denied" in the chat.
+Claude runs with `--permission-mode auto`, like the Claude Code app: a classifier approves safe
+actions. What still needs approval, and questions from `AskUserQuestion`, show up as cards in the
+chat; the agent waits until you answer there.
 
 "×" on an agent stops it and runs `git worktree remove` (without `--force`). If the worktree has
 uncommitted changes, git refuses and the worktree stays. The `orchard/<slug>` branch is always kept.

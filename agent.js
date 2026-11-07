@@ -26,10 +26,9 @@ class Agent extends EventEmitter {
         '--input-format', 'stream-json',
         '--output-format', 'stream-json',
         '--verbose',
-        // -p has no way to ask for approval, so every write was denied.
-        // Edits stay inside the agent's own worktree.
-        '--permission-mode', 'acceptEdits',
-        // Everything else that needs approval, and AskUserQuestion, comes to us as a control_request.
+        // Like the Claude Code app: a classifier approves safe actions, so only risky ones ask.
+        '--permission-mode', 'auto',
+        // What still needs approval, and AskUserQuestion, comes to us as a control_request.
         '--permission-prompt-tool', 'stdio',
       ];
     if (model) {
