@@ -1,7 +1,7 @@
 // Tests claudeStatus and checkExecutable without a real claude.
 const assert = require('node:assert');
 const path = require('node:path');
-const { claudeStatus, checkExecutable } = require('../agent');
+const { claudeStatus, checkExecutable, parseMcpList } = require('../agent');
 
 const fake = [process.execPath, [path.join(__dirname, 'fake-claude.js')]];
 
@@ -51,3 +51,19 @@ const fake = [process.execPath, [path.join(__dirname, 'fake-claude.js')]];
   fs.rmSync(tmp, { recursive: true });
   console.log('OK: claudeDefaults');
 }
+
+// parseMcpList: names with ":" and spaces, every status mark, header lines skipped.
+assert.deepStrictEqual(parseMcpList([
+  'Checking MCP server health…',
+  '',
+  'plugin:design:linear: https://mcp.linear.app/mcp (HTTP) - ✔ Connected',
+  'claude.ai Notion: https://mcp.notion.com/mcp - ! Needs authentication',
+  'gh: https://x/mcp/ (HTTP) - ✘ Failed to connect — HTTP 400: bad',
+  'plugin:design:google calendar:  (HTTP) - - Not configured',
+].join('\n')), [
+  { name: 'plugin:design:linear', state: 'ok', status: 'Connected' },
+  { name: 'claude.ai Notion', state: 'warn', status: 'Needs authentication' },
+  { name: 'gh', state: 'failed', status: 'Failed to connect — HTTP 400: bad' },
+  { name: 'plugin:design:google calendar', state: 'off', status: 'Not configured' },
+]);
+console.log('OK: parseMcpList');

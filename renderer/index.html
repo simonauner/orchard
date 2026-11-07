@@ -80,9 +80,10 @@
     .statusRow { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; }
     .statusRow > span { display: flex; align-items: center; gap: 6px; }
     .dot.ok { background: #2e9e4f; } .dot.bad { background: #d33; }
-    #stTable { width: 100%; border-collapse: collapse; border: 1px solid var(--bd); }
-    #stTable th, #stTable td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--bd); font-weight: normal; }
-    #stTable th { color: var(--muted); width: 150px; border-right: 1px solid var(--bd); }
+    #mcpTable .dot { display: inline-block; margin-right: 6px; } .dot.warn { background: #e0a800; }
+    #stTable, #mcpTable { width: 100%; border-collapse: collapse; border: 1px solid var(--bd); }
+    #stTable th, #stTable td, #mcpTable th, #mcpTable td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--bd); font-weight: normal; }
+    #stTable th, #mcpTable th { color: var(--muted); width: 150px; border-right: 1px solid var(--bd); }
     .btn { text-decoration: none; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--bd); background: none; cursor: pointer; white-space: nowrap; }
     #settingsView .row input { flex: 1; padding: 6px 8px; font-family: ui-monospace, monospace; font-size: 12px; }
     code { font-family: ui-monospace, monospace; font-size: 12px; }
@@ -203,6 +204,16 @@
       </div>
       <table id="stTable"></table>
       <p id="stHint" class="meta"></p>
+
+      <h2>GitHub</h2>
+      <p class="meta">Pull requests and merging use the GitHub CLI (<code>gh</code>) and its login.</p>
+      <div class="statusRow"><span><span class="dot" id="ghDot"></span><span id="ghText">Checking…</span></span></div>
+      <p id="ghHint" class="meta"></p>
+
+      <h2>MCP servers</h2>
+      <p class="meta">Agents use the MCP servers configured in Claude Code. Sign in to them with <code>/mcp</code> in <code>claude</code>.</p>
+      <table id="mcpTable"></table>
+      <p id="mcpHint" class="meta"></p>
 
       <h2>Claude Code executable path</h2>
       <p class="meta">Leave empty to use <code>claude</code> from your PATH. Applies to agents created after the change.</p>

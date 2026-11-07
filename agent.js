@@ -183,6 +183,23 @@ async function claudeStatus(command = 'claude', args = []) {
   }
 }
 
+// MCP servers as `claude mcp list` reports them; run from home so only user-level servers show.
+async function mcpStatus(command = 'claude', args = []) {
+  try {
+    const { stdout } = await execFileP(command, [...args, 'mcp', 'list'], { timeout: 60000, cwd: require('node:os').homedir() });
+    return { ok: true, servers: parseMcpList(stdout) };
+  } catch (e) {
+    return { ok: false, error: e.code === 'ENOENT' ? `Claude Code not found: ${command}` : e.stderr?.trim() || e.message };
+  }
+}
+
+// "name: target - ✔ Connected" per line; names may hold ":" and spaces.
+const MCP_STATES = { '✔': 'ok', '!': 'warn', '✘': 'failed', '-': 'off' };
+function parseMcpList(text) {
+  return text.split('\n').map((l) => l.match(/^(.+?): .* - ([✔!✘-]) (.+)$/)).filter(Boolean)
+    .map(([, name, mark, status]) => ({ name, state: MCP_STATES[mark], status }));
+}
+
 // What claude picks when no --model/--effort is passed: env, then local > project > user settings.
 // shortcut: ignores managed (enterprise) settings, read them too if someone relies on those.
 function claudeDefaults(cwd, env = process.env) {
@@ -254,5 +271,5 @@ async function removeWorktree({ root, dir }, force = false) {
 }
 
 module.exports = {
-  Agent, MODELS, EFFORTS, IMAGE_TYPES, checkExecutable, claudeDefaults, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify,
+  Agent, MODELS, EFFORTS, IMAGE_TYPES, checkExecutable, claudeDefaults, claudeStatus, createWorktree, mcpStatus, parseMcpList, removeWorktree, repoRoot, slugify,
 };

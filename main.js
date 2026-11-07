@@ -1,9 +1,9 @@
 const { app, BrowserWindow, ipcMain, dialog, Notification, shell, clipboard } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
-const { Agent, checkExecutable, claudeDefaults, claudeStatus, createWorktree, removeWorktree, repoRoot, slugify } = require('./agent');
+const { Agent, checkExecutable, claudeDefaults, claudeStatus, createWorktree, mcpStatus, removeWorktree, repoRoot, slugify } = require('./agent');
 const { loadConfig, scriptEnv, runScript } = require('./scripts');
-const { gitInfo, mergePr } = require('./gitinfo');
+const { ghStatus, gitInfo, mergePr } = require('./gitinfo');
 const pty = require('node-pty');
 
 // The native Claude Code installer puts `claude` in ~/.local/bin, which shells and GUI launches often lack.
@@ -134,6 +134,8 @@ ipcMain.handle('claude:defaults', (_e, workspace) => (workspaces.includes(worksp
 
 ipcMain.handle('settings:get', () => settings);
 ipcMain.handle('settings:status', () => claudeStatus(claudeCommand()));
+ipcMain.handle('settings:gh', () => ghStatus());
+ipcMain.handle('settings:mcp', () => mcpStatus(claudeCommand()));
 
 ipcMain.handle('settings:browseClaude', async () => {
   const res = await dialog.showOpenDialog(win, { title: 'Choose the Claude Code executable', properties: ['openFile'] });

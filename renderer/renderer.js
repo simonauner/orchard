@@ -575,20 +575,56 @@ async function refreshStatus() {
   if (st.configDirectory) $('settingsFile').textContent = st.configDirectory.replace(/\/$/, '') + '/settings.json';
 }
 
+async function refreshGh() {
+  $('ghDot').className = 'dot';
+  $('ghText').textContent = 'Checking…';
+  $('ghHint').textContent = '';
+  const st = await window.agents.ghStatus();
+  $('ghDot').className = 'dot ' + (st.ok ? 'ok' : 'bad');
+  $('ghText').textContent = st.ok ? `Connected${st.account ? ' as ' + st.account : ''}` : st.error;
+  $('ghHint').className = 'meta bad-text';
+  $('ghHint').textContent = st.ok ? ''
+    : st.detail ? 'Run gh auth login in a terminal, then Refresh.'
+    : 'Install it with brew install gh, then run gh auth login and Refresh.';
+}
+
+async function refreshMcp() {
+  const table = $('mcpTable');
+  table.innerHTML = '';
+  table.hidden = true;
+  $('mcpHint').className = 'meta';
+  $('mcpHint').textContent = 'Checking…';
+  const st = await window.agents.mcpStatus();
+  table.hidden = !st.ok || !st.servers.length;
+  for (const s of st.ok ? st.servers : []) {
+    const tr = document.createElement('tr');
+    const td = el('td', null, s.status);
+    td.prepend(el('span', `dot ${{ ok: 'ok', warn: 'warn', failed: 'bad' }[s.state] || ''}`));
+    tr.append(el('th', null, s.name), td);
+    table.appendChild(tr);
+  }
+  const broken = st.ok && st.servers.some((s) => s.state === 'warn' || s.state === 'failed');
+  $('mcpHint').className = !st.ok || broken ? 'meta bad-text' : 'meta';
+  $('mcpHint').textContent = !st.ok ? st.error
+    : broken ? 'Run claude in a terminal and type /mcp to sign in to or reconnect the servers marked yellow or red, then Refresh.'
+    : st.servers.length ? '' : 'No MCP servers configured.';
+}
+
 async function saveClaudePath(file) {
   const res = await window.agents.setClaudePath(file);
   $('pathMsg').className = res.error ? 'meta bad-text' : 'meta';
   $('pathMsg').textContent = res.error || (res.claudePath ? 'Saved.' : 'Using claude from PATH.');
-  if (!res.error) { $('claudePath').value = res.claudePath; refreshStatus(); }
+  if (!res.error) { $('claudePath').value = res.claudePath; refreshStatus(); refreshMcp(); }
 }
 
 $('navSettings').onclick = async () => {
   showView('settings');
   $('pathMsg').textContent = '';
   $('claudePath').value = (await window.agents.settings()).claudePath;
-  refreshStatus();
+  refreshAll();
 };
-$('refresh').onclick = refreshStatus;
+const refreshAll = () => { refreshStatus(); refreshGh(); refreshMcp(); };
+$('refresh').onclick = refreshAll;
 $('claudePath').onchange = () => saveClaudePath($('claudePath').value);
 $('systemClaude').onclick = () => saveClaudePath('');
 $('browse').onclick = async () => {

@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('agents', {
   defaults: (workspace) => ipcRenderer.invoke('claude:defaults', workspace),
   settings: () => ipcRenderer.invoke('settings:get'),
   status: () => ipcRenderer.invoke('settings:status'),
+  ghStatus: () => ipcRenderer.invoke('settings:gh'),
+  mcpStatus: () => ipcRenderer.invoke('settings:mcp'),
   browseClaude: () => ipcRenderer.invoke('settings:browseClaude'),
   setClaudePath: (file) => ipcRenderer.invoke('settings:setClaudePath', file),
   list: () => ipcRenderer.invoke('agent:list'),

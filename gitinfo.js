@@ -84,4 +84,15 @@ async function mergePr(cwd, number) {
   await gh(cwd, 'pr', 'merge', String(number), method);
 }
 
-module.exports = { gitInfo, mergePr, prStatus };
+// For the settings view: is gh installed and logged in? PRs and merging depend on it.
+async function ghStatus() {
+  try {
+    const { stdout, stderr } = await execFileP('gh', ['auth', 'status'], { timeout: 15000 });
+    return { ok: true, account: (stdout + stderr).match(/account (\S+)/)?.[1] };
+  } catch (e) {
+    if (e.code === 'ENOENT') return { ok: false, error: 'GitHub CLI (gh) not found' };
+    return { ok: false, error: 'Not logged in to GitHub', detail: (e.stderr || e.stdout || e.message).trim() };
+  }
+}
+
+module.exports = { ghStatus, gitInfo, mergePr, prStatus };
