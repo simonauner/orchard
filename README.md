@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/icon.png" alt="Orchard app icon" width="128"></p>
+
 # Orchard
 
 Orchard is a minimal Electron app that runs several Claude Code processes and streams their replies to a chat UI.
