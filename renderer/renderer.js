@@ -449,7 +449,7 @@ async function refreshGit(id) {
   if (state.active === id && state.view === 'chat') renderGit(a);
 }
 
-const STATUS_CLS = { 'Ready to merge': 'ok', Merged: 'ok', 'Checks failing': 'bad', Conflicts: 'bad', 'Changes requested': 'bad' };
+const STATUS_CLS = { 'Ready to merge': 'ok', Merged: 'merged', 'Checks failing': 'bad', Conflicts: 'bad', 'Changes requested': 'bad' };
 
 function renderGit(a) {
   const g = a.git;
@@ -460,7 +460,7 @@ function renderGit(a) {
   if (g.ghError) prs.appendChild(el('div', 'meta', g.ghError));
   for (const pr of g.prs) {
     const row = el('div', 'pr');
-    const link = el('a', 'btn', `#${pr.number} ↗`);
+    const link = el('a', 'btn ' + (STATUS_CLS[pr.status] || ''), `#${pr.number} ↗`);
     link.href = pr.url;
     link.target = '_blank';
     link.title = pr.title;
