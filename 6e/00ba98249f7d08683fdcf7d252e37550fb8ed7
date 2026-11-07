@@ -1,0 +1,21 @@
+renderer/index.html
+  s_e97deab60471a3::t_6ba564cf819c98 144-147,163
+renderer/renderer.js
+  s_e97deab60471a3::t_6ba564cf819c98 644-652,654-682
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6e00ba98249f7d08683fdcf7d252e37550fb8ed7",
+  "prompts": {},
+  "sessions": {
+    "s_e97deab60471a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4952aee-6e73-4c28-9d95-7468b2de3148",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon Aunér <simonauner@gmail.com>"
+    }
+  }
+}
